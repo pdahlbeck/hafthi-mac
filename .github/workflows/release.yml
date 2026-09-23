@@ -1,0 +1,37 @@
+name: Publish macOS beta
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/release.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Apple Silicon app
+        run: |
+          test "$(uname -m)" = arm64
+          bash build-app.sh
+          lipo -verify_arch arm64 build/HafthiMac.app/Contents/MacOS/HafthiMac
+      - name: Sign and package app
+        run: |
+          codesign --force --deep --sign - build/HafthiMac.app
+          codesign --verify --deep --strict build/HafthiMac.app
+          ditto -c -k --keepParent build/HafthiMac.app HafthiMac-0.1.0-beta.1-macOS-arm64.zip
+          shasum -a 256 HafthiMac-0.1.0-beta.1-macOS-arm64.zip > HafthiMac-0.1.0-beta.1-macOS-arm64.zip.sha256
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.1.0-beta.1 \
+            HafthiMac-0.1.0-beta.1-macOS-arm64.zip \
+            HafthiMac-0.1.0-beta.1-macOS-arm64.zip.sha256 \
+            --target "$GITHUB_SHA" \
+            --title "Hafþi Mac 0.1.0 beta 1" \
+            --notes-file RELEASE_NOTES.md \
+            --prerelease
