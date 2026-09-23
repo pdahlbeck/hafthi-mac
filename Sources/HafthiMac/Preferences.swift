@@ -69,8 +69,37 @@ final class PreferencesWindow: NSWindowController {
         }
     }
 
+    private enum Plugin: Int, CaseIterable {
+        case fish, starship, tgpt
+
+        var title: String {
+            switch self {
+            case .fish: return "Fish"
+            case .starship: return "Starship"
+            case .tgpt: return "tgpt"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .fish: return "terminal"
+            case .starship: return "sparkles"
+            case .tgpt: return "questionmark.bubble"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .fish: return "Shell · greeting and startup"
+            case .starship: return "Prompt · Fish integration"
+            case .tgpt: return "Command help · questions and installation"
+            }
+        }
+    }
+
     private var settings: MacSettings
     private var selectedPage: Page = .appearance
+    private var selectedPlugin: Plugin?
     var onChange: ((MacSettings) -> Void)?
     var onAsk: ((String) -> Void)?
     var onInstall: (() -> Void)?
@@ -153,7 +182,15 @@ final class PreferencesWindow: NSWindowController {
             stack.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -20)
         ])
 
-        let heading = NSTextField(labelWithString: selectedPage.title)
+        if selectedPage == .plugins, selectedPlugin != nil {
+            let back = NSButton(title: "‹  Plugins", target: self, action: #selector(backToPlugins(_:)))
+            back.isBordered = false
+            back.contentTintColor = .controlAccentColor
+            stack.addArrangedSubview(back)
+            stack.setCustomSpacing(16, after: back)
+        }
+
+        let heading = NSTextField(labelWithString: selectedPlugin?.title ?? selectedPage.title)
         heading.font = .boldSystemFont(ofSize: 22)
         stack.addArrangedSubview(heading)
         stack.setCustomSpacing(21, after: heading)
@@ -167,8 +204,21 @@ final class PreferencesWindow: NSWindowController {
     }
 
     @objc private func selectPage(_ sender: NSButton) {
-        guard let page = Page(rawValue: sender.tag), page != selectedPage else { return }
+        guard let page = Page(rawValue: sender.tag), page != selectedPage || selectedPlugin != nil else { return }
         selectedPage = page
+        selectedPlugin = nil
+        refresh(settings)
+    }
+
+    @objc private func openPlugin(_ sender: NSButton) {
+        guard let plugin = Plugin(rawValue: sender.tag) else { return }
+        selectedPage = .plugins
+        selectedPlugin = plugin
+        refresh(settings)
+    }
+
+    @objc private func backToPlugins(_ sender: Any?) {
+        selectedPlugin = nil
         refresh(settings)
     }
 
@@ -217,21 +267,102 @@ final class PreferencesWindow: NSWindowController {
     }
 
     private func buildPlugins(in stack: NSStackView) {
-        stack.addArrangedSubview(section("Fish · shell"))
+        guard let selectedPlugin else {
+            let description = detail("Optional tools for your shell, prompt, and command help.")
+            stack.addArrangedSubview(description)
+            stack.setCustomSpacing(18, after: description)
+            for plugin in Plugin.allCases {
+                stack.addArrangedSubview(pluginCard(plugin))
+            }
+            return
+        }
+
+        switch selectedPlugin {
+        case .fish: buildFishSettings(in: stack)
+        case .starship: buildStarshipSettings(in: stack)
+        case .tgpt: buildTgptSettings(in: stack)
+        }
+    }
+
+    private func pluginCard(_ plugin: Plugin) -> NSView {
+        let card = NSView()
+        card.wantsLayer = true
+        card.layer?.cornerRadius = 12
+        card.layer?.backgroundColor = NSColor(calibratedRed: 0.18, green: 0.20, blue: 0.24, alpha: 1).cgColor
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.widthAnchor.constraint(equalToConstant: 480).isActive = true
+        card.heightAnchor.constraint(equalToConstant: 84).isActive = true
+
+        let symbol = NSImageView()
+        symbol.image = NSImage(systemSymbolName: plugin.symbol, accessibilityDescription: plugin.title)
+        symbol.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 22, weight: .medium)
+        symbol.contentTintColor = .controlAccentColor
+        symbol.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(symbol)
+
+        let title = NSTextField(labelWithString: plugin.title)
+        title.font = .systemFont(ofSize: 15, weight: .semibold)
+        title.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(title)
+
+        let subtitle = NSTextField(labelWithString: plugin.subtitle)
+        subtitle.font = .systemFont(ofSize: 12)
+        subtitle.textColor = .secondaryLabelColor
+        subtitle.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(subtitle)
+
+        let chevron = NSImageView()
+        chevron.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
+        chevron.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        chevron.contentTintColor = .tertiaryLabelColor
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(chevron)
+
+        let button = NSButton(title: "", target: self, action: #selector(openPlugin(_:)))
+        button.tag = plugin.rawValue
+        button.isBordered = false
+        button.focusRingType = .exterior
+        button.toolTip = "Open \(plugin.title) settings"
+        button.setAccessibilityLabel("Open \(plugin.title) settings")
+        button.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(button)
+
+        NSLayoutConstraint.activate([
+            symbol.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
+            symbol.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            symbol.widthAnchor.constraint(equalToConstant: 30),
+            symbol.heightAnchor.constraint(equalToConstant: 30),
+            title.leadingAnchor.constraint(equalTo: symbol.trailingAnchor, constant: 16),
+            title.bottomAnchor.constraint(equalTo: card.centerYAnchor, constant: -2),
+            subtitle.leadingAnchor.constraint(equalTo: title.leadingAnchor),
+            subtitle.topAnchor.constraint(equalTo: card.centerYAnchor, constant: 4),
+            chevron.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -20),
+            chevron.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            button.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            button.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            button.topAnchor.constraint(equalTo: card.topAnchor),
+            button.bottomAnchor.constraint(equalTo: card.bottomAnchor)
+        ])
+        return card
+    }
+
+    private func buildFishSettings(in stack: NSStackView) {
         stack.addArrangedSubview(detail("Uses Fish automatically when installed. Open a new window to switch shells."))
         let greeting = NSButton(checkboxWithTitle: "Show fish welcome message in new windows",
                                 target: self, action: #selector(toggleFishGreeting(_:)))
         greeting.state = settings.showFishGreeting == true ? .on : .off
         stack.addArrangedSubview(greeting)
+    }
 
-        stack.addArrangedSubview(section("Starship · prompt"))
+    private func buildStarshipSettings(in stack: NSStackView) {
         stack.addArrangedSubview(detail("Optional Fish prompt. Install separately with brew install starship."))
         let starship = NSButton(checkboxWithTitle: "Use Starship in new Fish windows when installed",
                                 target: self, action: #selector(toggleStarship(_:)))
         starship.state = settings.useStarship != false ? .on : .off
         stack.addArrangedSubview(starship)
+    }
 
-        stack.addArrangedSubview(section("tgpt · command help"))
+    private func buildTgptSettings(in stack: NSStackView) {
         let help = NSButton(checkboxWithTitle: "Enable optional command help", target: self,
                             action: #selector(toggleHelp(_:)))
         help.state = settings.commandHelpEnabled ? .on : .off
@@ -245,12 +376,6 @@ final class PreferencesWindow: NSWindowController {
         let install = NSButton(title: "Install tgpt…", target: self, action: #selector(installTgpt(_:)))
         stack.addArrangedSubview(NSStackView(views: [ask, install]))
         stack.addArrangedSubview(detail("Questions go to tgpt's online provider. Suggested commands are never run automatically."))
-    }
-
-    private func section(_ title: String) -> NSTextField {
-        let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 14, weight: .semibold)
-        return label
     }
 
     private func detail(_ message: String) -> NSTextField {
@@ -345,8 +470,9 @@ final class PreferencesWindow: NSWindowController {
     }
 
     func focusQuestion() {
-        if selectedPage != .plugins {
+        if selectedPage != .plugins || selectedPlugin != .tgpt {
             selectedPage = .plugins
+            selectedPlugin = .tgpt
             refresh(settings)
         }
         window?.makeFirstResponder(questionInput)
