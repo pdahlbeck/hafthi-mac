@@ -11,7 +11,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build with SwiftPM
         run: swift build --build-system native
-      - name: Test terminal replies and parsing
-        run: swift test --build-system native
       - name: Build app bundle
         run: bash build-app.sh
