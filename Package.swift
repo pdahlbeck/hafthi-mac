@@ -7,6 +7,8 @@ let package = Package(
     products: [.executable(name: "HafthiMac", targets: ["HafthiMac"])],
     targets: [
         .target(name: "PTYSupport"),
-        .executableTarget(name: "HafthiMac", dependencies: ["PTYSupport"])
+        .target(name: "TerminalCore"),
+        .executableTarget(name: "HafthiMac", dependencies: ["PTYSupport", "TerminalCore"]),
+        .testTarget(name: "TerminalCoreTests", dependencies: ["TerminalCore"])
     ]
 )

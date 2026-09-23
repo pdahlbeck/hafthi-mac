@@ -2,6 +2,7 @@ import AppKit
 import Darwin
 import Foundation
 import PTYSupport
+import TerminalCore
 
 private final class TerminalView: NSTextView {
     var sendInput: ((Data) -> Void)?
@@ -169,7 +170,8 @@ private final class TerminalSession {
         guard length > 0 else { return }
         let decoded = String(decoding: bytes.prefix(length), as: UTF8.self)
         pendingUTF8 = Data(bytes.dropFirst(length))
-        screen.consume(decoded)
+        let replies = screen.consume(decoded)
+        for reply in replies { send(Data(reply.utf8)) }
         view.string = screen.text
         view.scrollToEndOfDocument(nil)
     }

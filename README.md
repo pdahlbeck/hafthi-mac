@@ -30,7 +30,7 @@ The locally built app is unsigned. For distributing it to other Macs, code signi
 
 ## Status
 
-This is a first macOS prototype. It currently renders shell text with AppKit rather than Hafþi's GPU renderer. Fish's prompt can redraw the input line, but terminal colors and full-screen programs such as vim are not yet correctly rendered. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
+This is a first macOS prototype. It currently renders shell text with AppKit rather than Hafþi's GPU renderer. Fish's prompt can redraw the input line and its startup terminal queries are handled, but terminal colors and full-screen programs such as vim are not yet correctly rendered. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
 
 ## License
 
