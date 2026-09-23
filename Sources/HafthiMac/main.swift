@@ -6,14 +6,6 @@ final class HafthiTerminalView: LocalProcessTerminalView {
     weak var owner: AppDelegate?
 
     override func menu(for event: NSEvent) -> NSMenu? { owner?.contextMenu(for: self) }
-
-    override func scrollWheel(with event: NSEvent) {
-        if event.modifierFlags.contains(.control) {
-            owner?.adjustFont(by: event.scrollingDeltaY > 0 ? 1 : -1)
-        } else {
-            super.scrollWheel(with: event)
-        }
-    }
 }
 
 final class TerminalWindow: NSWindow {
@@ -89,10 +81,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     private var windows: [ObjectIdentifier: TerminalWindow] = [:]
     private var preferences: PreferencesWindow?
     private weak var lastTerminal: HafthiTerminalView?
+    private var scrollMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         settings.save()
         installMenu()
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard event.modifierFlags.contains(.control), event.window is TerminalWindow else { return event }
+            self?.adjustFont(by: event.scrollingDeltaY > 0 ? 1 : -1)
+            return nil
+        }
         openWindow(nil)
     }
 
