@@ -13,6 +13,8 @@ struct MacSettings: Codable {
     var backgroundMode = "off" // off, banner, full
     var imagePath = ""
     var commandHelpEnabled = false
+    // Optional so settings saved by earlier versions still decode correctly.
+    var showFishGreeting: Bool? = nil
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -67,7 +69,7 @@ final class PreferencesWindow: NSWindowController {
 
     init(settings: MacSettings) {
         self.settings = settings
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 700),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 780),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Hafþi Preferences"
         window.center()
@@ -133,6 +135,16 @@ final class PreferencesWindow: NSWindowController {
         imageName.stringValue = settings.imagePath.isEmpty ? "No image selected" : URL(fileURLWithPath: settings.imagePath).lastPathComponent
         imageName.lineBreakMode = .byTruncatingMiddle
         stack.addArrangedSubview(row("Image", choose, imageName))
+
+        let fishInfo = NSTextField(wrappingLabelWithString:
+            "Fish is the friendly interactive shell. Type help in the terminal for instructions.")
+        fishInfo.textColor = .secondaryLabelColor
+        fishInfo.widthAnchor.constraint(equalToConstant: 480).isActive = true
+        stack.addArrangedSubview(fishInfo)
+        let greeting = NSButton(checkboxWithTitle: "Show fish welcome message in new windows",
+                                target: self, action: #selector(toggleFishGreeting(_:)))
+        greeting.state = settings.showFishGreeting == true ? .on : .off
+        stack.addArrangedSubview(greeting)
 
         let help = NSButton(checkboxWithTitle: "Enable optional command help", target: self,
                             action: #selector(toggleHelp(_:)))
@@ -246,6 +258,11 @@ final class PreferencesWindow: NSWindowController {
     @objc private func toggleHelp(_ sender: NSButton) {
         settings.commandHelpEnabled = sender.state == .on
         refresh(settings)
+        changed()
+    }
+
+    @objc private func toggleFishGreeting(_ sender: NSButton) {
+        settings.showFishGreeting = sender.state == .on
         changed()
     }
 
