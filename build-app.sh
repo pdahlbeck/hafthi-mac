@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-swift build -c release
+swift build -c release --build-system native
 APP="build/HafthiMac.app"
 mkdir -p "$APP/Contents/MacOS"
 cp ".build/release/HafthiMac" "$APP/Contents/MacOS/HafthiMac"

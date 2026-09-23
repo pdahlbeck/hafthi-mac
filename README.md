@@ -7,16 +7,17 @@ An experimental native macOS port of [Hafþi](https://github.com/pdahlbeck/hafth
 - macOS 13 or later
 - Apple Silicon Mac
 - Xcode Command Line Tools (`xcode-select --install`)
+- Optional: [Fish](https://fishshell.com/) (`brew install fish`). Hafþi uses your login shell if Fish is not installed.
 
 ## Run
 
 ```sh
 git clone https://github.com/pdahlbeck/hafthi-mac.git
 cd hafthi-mac
-swift run HafthiMac
+swift run --build-system native HafthiMac
 ```
 
-This opens a window with an interactive login shell. The terminal runs commands on your Mac. Use Command+C and Command+V for copy and paste.
+This opens a window with Fish if installed, or your normal login shell otherwise. The shell runs in a macOS pseudo-terminal and commands run on your Mac. Use Command+C and Command+V for copy and paste. Use Control+C to interrupt a command.
 
 ## Build an app
 
@@ -29,7 +30,7 @@ The locally built app is unsigned. For distributing it to other Macs, code signi
 
 ## Status
 
-This is a first macOS prototype. It currently renders shell text with AppKit rather than Hafþi's GPU renderer. Its escape sequence support, scrollback, keyboard mapping and resizing still need work before it can replace a daily terminal. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
+This is a first macOS prototype. It currently renders shell text with AppKit rather than Hafþi's GPU renderer. Fish's prompt can redraw the input line, but terminal colors and full-screen programs such as vim are not yet correctly rendered. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
 
 ## License
 
