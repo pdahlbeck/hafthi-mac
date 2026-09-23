@@ -56,7 +56,21 @@ extension NSColor {
 }
 
 final class PreferencesWindow: NSWindowController {
+    private enum Page: Int, CaseIterable {
+        case appearance, terminal, background, plugins
+
+        var title: String {
+            switch self {
+            case .appearance: return "Appearance"
+            case .terminal: return "Terminal"
+            case .background: return "Background"
+            case .plugins: return "Plugins"
+            }
+        }
+    }
+
     private var settings: MacSettings
+    private var selectedPage: Page = .appearance
     var onChange: ((MacSettings) -> Void)?
     var onAsk: ((String) -> Void)?
     var onInstall: (() -> Void)?
@@ -70,9 +84,10 @@ final class PreferencesWindow: NSWindowController {
 
     init(settings: MacSettings) {
         self.settings = settings
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 850),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 530),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Hafþi Preferences"
+        window.title = "Hafþi · Preferences"
+        window.appearance = NSAppearance(named: .darkAqua)
         window.center()
         super.init(window: window)
         buildControls(in: window)
@@ -88,18 +103,76 @@ final class PreferencesWindow: NSWindowController {
 
     private func buildControls(in window: NSWindow) {
         guard let content = window.contentView else { return }
+        content.wantsLayer = true
+        content.layer?.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.18, alpha: 1).cgColor
+
+        let sidebar = NSView()
+        sidebar.wantsLayer = true
+        sidebar.layer?.backgroundColor = NSColor(calibratedRed: 0.16, green: 0.18, blue: 0.22, alpha: 1).cgColor
+        sidebar.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(sidebar)
+
+        let navigation = NSStackView()
+        navigation.orientation = .vertical
+        navigation.alignment = .leading
+        navigation.spacing = 8
+        navigation.translatesAutoresizingMaskIntoConstraints = false
+        sidebar.addSubview(navigation)
+
+        let brand = NSTextField(labelWithString: "Hafþi")
+        brand.font = .boldSystemFont(ofSize: 19)
+        navigation.addArrangedSubview(brand)
+        navigation.setCustomSpacing(24, after: brand)
+        for page in Page.allCases {
+            let button = NSButton(title: page.title, target: self, action: #selector(selectPage(_:)))
+            button.tag = page.rawValue
+            button.alignment = .left
+            button.bezelStyle = .rounded
+            button.isBordered = page == selectedPage
+            button.font = .systemFont(ofSize: 13, weight: page == selectedPage ? .semibold : .regular)
+            button.widthAnchor.constraint(equalToConstant: 160).isActive = true
+            navigation.addArrangedSubview(button)
+        }
+
         let stack = NSStackView()
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 12
+        stack.spacing = 11
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 24)
+            sidebar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            sidebar.topAnchor.constraint(equalTo: content.topAnchor),
+            sidebar.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            sidebar.widthAnchor.constraint(equalToConstant: 192),
+            navigation.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor, constant: 16),
+            navigation.topAnchor.constraint(equalTo: sidebar.topAnchor, constant: 26),
+            stack.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: 28),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -20),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 26),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -20)
         ])
 
+        let heading = NSTextField(labelWithString: selectedPage.title)
+        heading.font = .boldSystemFont(ofSize: 22)
+        stack.addArrangedSubview(heading)
+        stack.setCustomSpacing(21, after: heading)
+
+        switch selectedPage {
+        case .appearance: buildAppearance(in: stack)
+        case .terminal: buildTerminal(in: stack)
+        case .background: buildBackground(in: stack)
+        case .plugins: buildPlugins(in: stack)
+        }
+    }
+
+    @objc private func selectPage(_ sender: NSButton) {
+        guard let page = Page(rawValue: sender.tag), page != selectedPage else { return }
+        selectedPage = page
+        refresh(settings)
+    }
+
+    private func buildAppearance(in stack: NSStackView) {
         familyInput.stringValue = settings.fontFamily
         familyInput.placeholderString = "System Monospaced, Menlo, JetBrains Mono…"
         familyInput.target = self
@@ -117,7 +190,9 @@ final class PreferencesWindow: NSWindowController {
         let opacity = slider(value: settings.opacity, min: 0, max: 1, action: #selector(changeOpacity(_:)))
         opacityValue.stringValue = "\(Int(settings.opacity * 100))%"
         stack.addArrangedSubview(row("Background opacity", opacity, opacityValue))
+    }
 
+    private func buildTerminal(in stack: NSStackView) {
         let padding = slider(value: settings.padding, min: 0, max: 50, action: #selector(changePadding(_:)))
         paddingValue.stringValue = "\(Int(settings.padding)) px"
         stack.addArrangedSubview(row("Padding", padding, paddingValue))
@@ -126,7 +201,10 @@ final class PreferencesWindow: NSWindowController {
                              action: #selector(changeHistory(_:)))
         historyValue.stringValue = "\(settings.scrollback) lines"
         stack.addArrangedSubview(row("Scrollback", history, historyValue))
+        stack.addArrangedSubview(detail("Changes are saved to ~/Library/Application Support/Hafthi/config.json"))
+    }
 
+    private func buildBackground(in stack: NSStackView) {
         let modes = NSSegmentedControl(labels: ["Off", "Banner", "Full image"], trackingMode: .selectOne,
                                        target: self, action: #selector(changeBackground(_:)))
         modes.selectedSegment = ["off", "banner", "full"].firstIndex(of: settings.backgroundMode) ?? 0
@@ -136,27 +214,24 @@ final class PreferencesWindow: NSWindowController {
         imageName.stringValue = settings.imagePath.isEmpty ? "No image selected" : URL(fileURLWithPath: settings.imagePath).lastPathComponent
         imageName.lineBreakMode = .byTruncatingMiddle
         stack.addArrangedSubview(row("Image", choose, imageName))
+    }
 
-        let fishInfo = NSTextField(wrappingLabelWithString:
-            "Fish is the friendly interactive shell. Type help in the terminal for instructions.")
-        fishInfo.textColor = .secondaryLabelColor
-        fishInfo.widthAnchor.constraint(equalToConstant: 480).isActive = true
-        stack.addArrangedSubview(fishInfo)
+    private func buildPlugins(in stack: NSStackView) {
+        stack.addArrangedSubview(section("Fish · shell"))
+        stack.addArrangedSubview(detail("Uses Fish automatically when installed. Open a new window to switch shells."))
         let greeting = NSButton(checkboxWithTitle: "Show fish welcome message in new windows",
                                 target: self, action: #selector(toggleFishGreeting(_:)))
         greeting.state = settings.showFishGreeting == true ? .on : .off
         stack.addArrangedSubview(greeting)
 
-        let starshipInfo = NSTextField(wrappingLabelWithString:
-            "Starship is an optional prompt for Fish. Install it separately with brew install starship.")
-        starshipInfo.textColor = .secondaryLabelColor
-        starshipInfo.widthAnchor.constraint(equalToConstant: 480).isActive = true
-        stack.addArrangedSubview(starshipInfo)
+        stack.addArrangedSubview(section("Starship · prompt"))
+        stack.addArrangedSubview(detail("Optional Fish prompt. Install separately with brew install starship."))
         let starship = NSButton(checkboxWithTitle: "Use Starship in new Fish windows when installed",
                                 target: self, action: #selector(toggleStarship(_:)))
         starship.state = settings.useStarship != false ? .on : .off
         stack.addArrangedSubview(starship)
 
+        stack.addArrangedSubview(section("tgpt · command help"))
         let help = NSButton(checkboxWithTitle: "Enable optional command help", target: self,
                             action: #selector(toggleHelp(_:)))
         help.state = settings.commandHelpEnabled ? .on : .off
@@ -169,13 +244,20 @@ final class PreferencesWindow: NSWindowController {
         ask.isEnabled = settings.commandHelpEnabled
         let install = NSButton(title: "Install tgpt…", target: self, action: #selector(installTgpt(_:)))
         stack.addArrangedSubview(NSStackView(views: [ask, install]))
-        let privacy = NSTextField(wrappingLabelWithString: "Questions go to tgpt's online provider. Suggested commands are never run automatically.")
-        privacy.textColor = .secondaryLabelColor
-        stack.addArrangedSubview(privacy)
+        stack.addArrangedSubview(detail("Questions go to tgpt's online provider. Suggested commands are never run automatically."))
+    }
 
-        let note = NSTextField(wrappingLabelWithString: "Changes are saved to ~/Library/Application Support/Hafthi/config.json")
-        note.textColor = .secondaryLabelColor
-        stack.addArrangedSubview(note)
+    private func section(_ title: String) -> NSTextField {
+        let label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: 14, weight: .semibold)
+        return label
+    }
+
+    private func detail(_ message: String) -> NSTextField {
+        let label = NSTextField(wrappingLabelWithString: message)
+        label.textColor = .secondaryLabelColor
+        label.widthAnchor.constraint(equalToConstant: 480).isActive = true
+        return label
     }
 
     private func row(_ title: String, _ control: NSView, _ value: NSTextField?) -> NSStackView {
@@ -263,6 +345,10 @@ final class PreferencesWindow: NSWindowController {
     }
 
     func focusQuestion() {
+        if selectedPage != .plugins {
+            selectedPage = .plugins
+            refresh(settings)
+        }
         window?.makeFirstResponder(questionInput)
     }
 

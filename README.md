@@ -5,7 +5,7 @@ A native macOS version of [Hafþi for Linux](https://github.com/pdahlbeck/hafthi
 
 ## Download
 
-Download [Hafþi 0.1.0 beta 4 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.4). Unzip `Hafthi-0.1.0-beta.4-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
+Download [Hafþi 0.1.0 beta 5 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.5). Unzip `Hafthi-0.1.0-beta.5-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
@@ -45,7 +45,7 @@ Enable **Command help** in Preferences. Install [tgpt](https://github.com/aandre
 
 ## Preferences and configuration
 
-Use **⌘ ,** for font, colors, opacity, padding, scrollback, image/GIF mode, Fish greeting, Starship and command help. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish greeting and automatic Starship startup take effect in new windows.
+Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Plugins** (Fish, Starship, tgpt). These optional tools are installed separately; this page groups their Hafþi settings. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish greeting and automatic Starship startup take effect in new windows.
 
 ## Build from source
 
