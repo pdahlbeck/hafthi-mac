@@ -1,4 +1,4 @@
-name: Publish macOS beta
+name: Publish Hafþi beta
 
 on:
   push:
@@ -17,21 +17,21 @@ jobs:
         run: |
           test "$(uname -m)" = arm64
           bash build-app.sh
-          lipo build/HafthiMac.app/Contents/MacOS/HafthiMac -verify_arch arm64
+          lipo build/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64
       - name: Sign and package app
         run: |
-          codesign --force --deep --sign - build/HafthiMac.app
-          codesign --verify --deep --strict build/HafthiMac.app
-          ditto -c -k --keepParent build/HafthiMac.app HafthiMac-0.1.0-beta.1-macOS-arm64.zip
-          shasum -a 256 HafthiMac-0.1.0-beta.1-macOS-arm64.zip > HafthiMac-0.1.0-beta.1-macOS-arm64.zip.sha256
+          codesign --force --deep --sign - build/Hafþi.app
+          codesign --verify --deep --strict build/Hafþi.app
+          ditto -c -k --keepParent build/Hafþi.app Hafthi-0.1.0-beta.2-macOS-arm64.zip
+          shasum -a 256 Hafthi-0.1.0-beta.2-macOS-arm64.zip > Hafthi-0.1.0-beta.2-macOS-arm64.zip.sha256
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v0.1.0-beta.1 \
-            HafthiMac-0.1.0-beta.1-macOS-arm64.zip \
-            HafthiMac-0.1.0-beta.1-macOS-arm64.zip.sha256 \
+          gh release create v0.1.0-beta.2 \
+            Hafthi-0.1.0-beta.2-macOS-arm64.zip \
+            Hafthi-0.1.0-beta.2-macOS-arm64.zip.sha256 \
             --target "$GITHUB_SHA" \
-            --title "Hafþi Mac 0.1.0 beta 1" \
+            --title "Hafþi 0.1.0 beta 2" \
             --notes-file RELEASE_NOTES.md \
             --prerelease

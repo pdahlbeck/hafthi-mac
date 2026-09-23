@@ -2,26 +2,26 @@
 set -eu
 
 swift build -c release --build-system native
-APP="build/HafthiMac.app"
+APP="build/Hafþi.app"
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Resources"
-cp ".build/release/HafthiMac" "$APP/Contents/MacOS/HafthiMac"
+cp ".build/release/HafthiMac" "$APP/Contents/MacOS/Hafthi"
 cp Info.plist "$APP/Contents/Info.plist"
 if [ -f ".build/checkouts/SwiftTerm/LICENSE" ]; then
     cp ".build/checkouts/SwiftTerm/LICENSE" "$APP/Contents/Resources/SwiftTerm-LICENSE.txt"
 fi
 
 # Export the same icon shown in the Dock so Finder shows it before launch.
-ICONSET="build/HafthiMac.iconset"
+ICONSET="build/Hafthi.iconset"
 mkdir -p "$ICONSET"
 swiftc Sources/HafthiMac/AppIcon.swift scripts/export-icon.swift -o build/export-icon
-build/export-icon build/HafthiMac-icon.png
+build/export-icon build/Hafthi-icon.png
 for size in 16 32 128 256 512; do
-    sips -s format png -z "$size" "$size" build/HafthiMac-icon.png \
+    sips -s format png -z "$size" "$size" build/Hafthi-icon.png \
         --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
     double=$((size * 2))
-    sips -s format png -z "$double" "$double" build/HafthiMac-icon.png \
+    sips -s format png -z "$double" "$double" build/Hafthi-icon.png \
         --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/HafthiMac.icns"
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Hafthi.icns"
 printf 'Built %s\n' "$APP"

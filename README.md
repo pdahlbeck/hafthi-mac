@@ -1,10 +1,10 @@
-# Hafþi for macOS
+# Hafþi
 
 An experimental native macOS port of [Hafþi](https://github.com/pdahlbeck/hafthi), written in Swift and AppKit. It uses [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) for terminal emulation and optional Metal rendering.
 
 ## Download for Apple Silicon
 
-Download the latest beta from [GitHub Releases](https://github.com/pdahlbeck/hafthi-mac/releases). Unzip `HafthiMac-0.1.0-beta.1-macOS-arm64.zip` and drag `HafthiMac.app` to Applications. macOS 13 or later is required; Xcode and the Command Line Tools are **not** required to run the downloaded app.
+Download the latest beta from [GitHub Releases](https://github.com/pdahlbeck/hafthi-mac/releases). Unzip `Hafthi-0.1.0-beta.2-macOS-arm64.zip` and drag `Hafþi.app` to Applications. macOS 13 or later is required; Xcode and the Command Line Tools are **not** required to run the downloaded app.
 
 This beta has not been notarized with an Apple Developer ID. If macOS blocks it the first time, try to open the app, then go to **System Settings → Privacy & Security → Open Anyway** to approve this app. There is no need to disable Gatekeeper for the whole Mac.
 
@@ -24,7 +24,7 @@ swift run --build-system native HafthiMac
 
 This opens a window with Fish if installed, or your normal login shell otherwise. The shell runs in a macOS pseudo-terminal and commands run on your Mac. Use Command+C and Command+V for copy and paste. Use Control+C to interrupt a command.
 
-Hafþi Mac supports ANSI colors, interactive full-screen applications, selection, scrollback, Command+N for a new window, Control+mouse wheel for font zoom, and a right-click menu. Preferences (Command+,) control font and colors, transparency, padding, scrollback, an optional image or GIF background, and whether Fish shows its startup greeting. The greeting is hidden by default inside Hafþi; other terminals and your Fish configuration are unaffected. Settings are saved in `~/Library/Application Support/Hafthi/config.json`.
+Hafþi supports ANSI colors, interactive full-screen applications, selection, scrollback, Command+N for a new window, Control+mouse wheel for font zoom, and a right-click menu. Preferences (Command+,) control font and colors, transparency, padding, scrollback, an optional image or GIF background, and whether Fish shows its startup greeting. The greeting is hidden by default inside Hafþi; other terminals and your Fish configuration are unaffected. Settings are saved in `~/Library/Application Support/Hafthi/config.json`.
 
 Optional command help can be enabled in Preferences. [tgpt](https://github.com/aandrew-me/tgpt) can be installed with `brew install tgpt`; questions are sent to its online provider, and suggested commands are never executed for you.
 
@@ -32,7 +32,7 @@ Optional command help can be enabled in Preferences. [tgpt](https://github.com/a
 
 ```sh
 bash build-app.sh
-open build/HafthiMac.app
+open build/Hafþi.app
 ```
 
 The downloadable beta is ad hoc signed for integrity, but is not notarized with an Apple Developer ID.
