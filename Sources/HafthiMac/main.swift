@@ -11,6 +11,8 @@ final class HafthiTerminalView: LocalProcessTerminalView {
 final class TerminalWindow: NSWindow {
     let terminal: HafthiTerminalView
     private let imageView = NSImageView()
+    private var imageBottomConstraint: NSLayoutConstraint!
+    private var imageHeightConstraint: NSLayoutConstraint!
     private var edgeConstraints: [NSLayoutConstraint] = []
     private var topConstraint: NSLayoutConstraint!
 
@@ -33,11 +35,13 @@ final class TerminalWindow: NSWindow {
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.animates = true
         contentView.addSubview(imageView)
+        imageBottomConstraint = imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        imageHeightConstraint = imageView.heightAnchor.constraint(equalToConstant: 150)
         NSLayoutConstraint.activate([
             imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             imageView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+            imageBottomConstraint
         ])
 
         terminal.translatesAutoresizingMaskIntoConstraints = false
@@ -65,6 +69,8 @@ final class TerminalWindow: NSWindow {
         edgeConstraints[1].constant = -pad
         edgeConstraints[2].constant = -pad
         topConstraint.constant = pad + (settings.backgroundMode == "banner" ? 150 : 0)
+        imageBottomConstraint.isActive = settings.backgroundMode != "banner"
+        imageHeightConstraint.isActive = settings.backgroundMode == "banner"
         if settings.backgroundMode != "off", !settings.imagePath.isEmpty,
            let image = NSImage(contentsOfFile: settings.imagePath) {
             imageView.image = image
