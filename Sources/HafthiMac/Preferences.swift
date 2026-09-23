@@ -95,6 +95,14 @@ final class PreferencesWindow: NSWindowController {
             case .tgpt: return "Command help · questions and installation"
             }
         }
+
+        var githubURL: String {
+            switch self {
+            case .fish: return "https://github.com/fish-shell/fish-shell"
+            case .starship: return "https://github.com/starship/starship"
+            case .tgpt: return "https://github.com/aandrew-me/tgpt"
+            }
+        }
     }
 
     private var settings: MacSettings
@@ -222,6 +230,12 @@ final class PreferencesWindow: NSWindowController {
         refresh(settings)
     }
 
+    @objc private func openPluginRepository(_ sender: NSButton) {
+        guard let plugin = Plugin(rawValue: sender.tag),
+              let url = URL(string: plugin.githubURL) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     private func buildAppearance(in stack: NSStackView) {
         familyInput.stringValue = settings.fontFamily
         familyInput.placeholderString = "System Monospaced, Menlo, JetBrains Mono…"
@@ -268,7 +282,7 @@ final class PreferencesWindow: NSWindowController {
 
     private func buildPlugins(in stack: NSStackView) {
         guard let selectedPlugin else {
-            let description = detail("Optional tools for your shell, prompt, and command help.")
+            let description = detail("Optional tools for your shell, prompt, and command help. Install them yourself with Homebrew: brew install fish, brew install starship, or brew install tgpt.")
             stack.addArrangedSubview(description)
             stack.setCustomSpacing(18, after: description)
             for plugin in Plugin.allCases {
@@ -348,10 +362,12 @@ final class PreferencesWindow: NSWindowController {
 
     private func buildFishSettings(in stack: NSStackView) {
         stack.addArrangedSubview(detail("Uses Fish automatically when installed. Open a new window to switch shells."))
+        stack.addArrangedSubview(detail("Install it yourself with brew install fish."))
         let greeting = NSButton(checkboxWithTitle: "Show fish welcome message in new windows",
                                 target: self, action: #selector(toggleFishGreeting(_:)))
         greeting.state = settings.showFishGreeting == true ? .on : .off
         stack.addArrangedSubview(greeting)
+        stack.addArrangedSubview(pluginLink(.fish))
     }
 
     private func buildStarshipSettings(in stack: NSStackView) {
@@ -360,9 +376,11 @@ final class PreferencesWindow: NSWindowController {
                                 target: self, action: #selector(toggleStarship(_:)))
         starship.state = settings.useStarship != false ? .on : .off
         stack.addArrangedSubview(starship)
+        stack.addArrangedSubview(pluginLink(.starship))
     }
 
     private func buildTgptSettings(in stack: NSStackView) {
+        stack.addArrangedSubview(detail("Install it yourself with brew install tgpt, or use the button below to type the command in your terminal."))
         let help = NSButton(checkboxWithTitle: "Enable optional command help", target: self,
                             action: #selector(toggleHelp(_:)))
         help.state = settings.commandHelpEnabled ? .on : .off
@@ -376,6 +394,16 @@ final class PreferencesWindow: NSWindowController {
         let install = NSButton(title: "Install tgpt…", target: self, action: #selector(installTgpt(_:)))
         stack.addArrangedSubview(NSStackView(views: [ask, install]))
         stack.addArrangedSubview(detail("Questions go to tgpt's online provider. Suggested commands are never run automatically."))
+        stack.addArrangedSubview(pluginLink(.tgpt))
+    }
+
+    private func pluginLink(_ plugin: Plugin) -> NSButton {
+        let link = NSButton(title: "View \(plugin.title) on GitHub ↗", target: self,
+                            action: #selector(openPluginRepository(_:)))
+        link.tag = plugin.rawValue
+        link.isBordered = false
+        link.contentTintColor = .linkColor
+        return link
     }
 
     private func detail(_ message: String) -> NSTextField {
