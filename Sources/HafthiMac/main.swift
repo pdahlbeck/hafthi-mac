@@ -59,6 +59,8 @@ final class TerminalWindow: NSWindow {
     private var appliedScrollback = 0
     private var appliedImagePath = ""
     private var appliedImageMode = ""
+    private var bannerPadding: CGFloat = 0
+    private var isBanner = false
 
     init(settings: MacSettings, owner: AppDelegate) {
         let frame = NSRect(x: 0, y: 0, width: 980, height: 640)
@@ -112,7 +114,6 @@ final class TerminalWindow: NSWindow {
         }
         terminal.nativeForegroundColor = NSColor(hafthiHex: settings.foreground) ?? .white
         terminal.nativeBackgroundColor = NSColor(hafthiHex: settings.background) ?? .black
-        terminal.backgroundOpacity = CGFloat(settings.opacity)
         terminal.caretColor = NSColor(hafthiHex: settings.cursor) ?? .white
         terminal.selectedTextBackgroundColor = NSColor.systemBlue.withAlphaComponent(0.55)
         if appliedScrollback != settings.scrollback {
@@ -137,9 +138,15 @@ final class TerminalWindow: NSWindow {
             appliedImagePath = settings.imagePath
         }
         let banner = settings.backgroundMode == "banner" && imageView.image != nil
+        isBanner = banner
+        bannerPadding = pad
+        // The window paints the default background in banner mode. Rendering it
+        // again in SwiftTerm would make the terminal a darker separate rectangle.
+        terminal.backgroundOpacity = banner ? 0 : CGFloat(settings.opacity)
         backgroundColor = banner
             ? (NSColor(hafthiHex: settings.background) ?? .black).withAlphaComponent(CGFloat(settings.opacity))
             : .clear
+        titlebarAppearsTransparent = banner
         imageTrailingConstraint.isActive = !banner
         imageBottomConstraint.isActive = !banner
         imageWidthConstraint.isActive = banner
@@ -148,7 +155,19 @@ final class TerminalWindow: NSWindow {
         imageLeadingConstraint.constant = banner ? pad : 0
         imageTopConstraint.constant = banner ? pad : 0
         bannerMaxWidthConstraint.constant = -pad
-        topConstraint.constant = pad + (banner ? 180 + pad : 0)
+        topConstraint.constant = pad
+        if banner { updateBannerLayout() }
+    }
+
+    func updateBannerLayout() {
+        guard isBanner, let contentView, let image = imageView.image,
+              image.size.width > 0, image.size.height > 0 else { return }
+        let maxWidth = max(1, min(520, contentView.bounds.width - 2 * bannerPadding))
+        let maxHeight = max(1, min(180, contentView.bounds.height - 3 * bannerPadding))
+        let scale = min(maxWidth / image.size.width, maxHeight / image.size.height)
+        imageWidthConstraint.constant = image.size.width * scale
+        imageHeightConstraint.constant = image.size.height * scale
+        topConstraint.constant = imageHeightConstraint.constant + 2 * bannerPadding
     }
 }
 
@@ -208,6 +227,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         guard let window = notification.object as? TerminalWindow else { return }
         window.terminal.terminate()
         windows.removeValue(forKey: ObjectIdentifier(window))
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        (notification.object as? TerminalWindow)?.updateBannerLayout()
     }
 
     func processTerminated(source: SwiftTerm.TerminalView, exitCode: Int32?) {
