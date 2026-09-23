@@ -1,9 +1,9 @@
-Hafþi beta for Apple Silicon Macs (macOS 13 or later). The downloaded app is now named `Hafþi.app`.
+Hafþi beta 3 for Apple Silicon Macs (macOS 13 or later).
 
-- Download `Hafthi-0.1.0-beta.2-macOS-arm64.zip`, unzip it, and drag `Hafþi.app` to Applications. No Xcode or build tools are needed. If you installed beta 1, remove its old `HafthiMac.app` from Applications so you don't have two copies.
-- Fish is optional. Install it separately with `brew install fish` if you want Hafþi to use it; otherwise Hafþi uses your normal login shell.
-- Choose an image or GIF in Preferences (⌘,). Banner and full-window modes are available. Fish's startup message is hidden by default.
+- Download `Hafthi-0.1.0-beta.3-macOS-arm64.zip`, unzip it, and drag `Hafþi.app` to Applications. No Xcode or build tools are needed.
+- Fish remains optional (`brew install fish`). Starship is now optional too (`brew install starship`): Hafþi uses it automatically for new Fish windows when installed. Turn it off in Preferences (⌘,) if you prefer another prompt. Neither tool is bundled with the app, and Hafþi does not edit your Fish configuration.
+- Image and GIF backgrounds, Fish greeting control, and other existing Preferences remain available.
 
-This beta is ad hoc signed but not notarized with an Apple Developer ID. macOS may block it on first launch. After trying to open it, open System Settings → Privacy & Security → Open Anyway to approve this specific app. Do not disable Gatekeeper system-wide.
+This beta is ad hoc signed but not notarized with an Apple Developer ID. macOS may block it on first launch. After trying to open it, open System Settings → Privacy & Security → Open Anyway to approve this specific app.
 
 Source code: https://github.com/pdahlbeck/hafthi-mac

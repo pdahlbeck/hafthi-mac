@@ -15,6 +15,7 @@ struct MacSettings: Codable {
     var commandHelpEnabled = false
     // Optional so settings saved by earlier versions still decode correctly.
     var showFishGreeting: Bool? = nil
+    var useStarship: Bool? = nil
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -69,7 +70,7 @@ final class PreferencesWindow: NSWindowController {
 
     init(settings: MacSettings) {
         self.settings = settings
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 780),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 850),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Hafþi Preferences"
         window.center()
@@ -90,7 +91,7 @@ final class PreferencesWindow: NSWindowController {
         let stack = NSStackView()
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 15
+        stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -145,6 +146,16 @@ final class PreferencesWindow: NSWindowController {
                                 target: self, action: #selector(toggleFishGreeting(_:)))
         greeting.state = settings.showFishGreeting == true ? .on : .off
         stack.addArrangedSubview(greeting)
+
+        let starshipInfo = NSTextField(wrappingLabelWithString:
+            "Starship is an optional prompt for Fish. Install it separately with brew install starship.")
+        starshipInfo.textColor = .secondaryLabelColor
+        starshipInfo.widthAnchor.constraint(equalToConstant: 480).isActive = true
+        stack.addArrangedSubview(starshipInfo)
+        let starship = NSButton(checkboxWithTitle: "Use Starship in new Fish windows when installed",
+                                target: self, action: #selector(toggleStarship(_:)))
+        starship.state = settings.useStarship != false ? .on : .off
+        stack.addArrangedSubview(starship)
 
         let help = NSButton(checkboxWithTitle: "Enable optional command help", target: self,
                             action: #selector(toggleHelp(_:)))
@@ -263,6 +274,11 @@ final class PreferencesWindow: NSWindowController {
 
     @objc private func toggleFishGreeting(_ sender: NSButton) {
         settings.showFishGreeting = sender.state == .on
+        changed()
+    }
+
+    @objc private func toggleStarship(_ sender: NSButton) {
+        settings.useStarship = sender.state == .on
         changed()
     }
 

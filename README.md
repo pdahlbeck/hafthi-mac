@@ -4,11 +4,13 @@ An experimental native macOS port of [Hafþi](https://github.com/pdahlbeck/hafth
 
 ## Download for Apple Silicon
 
-Download the latest beta from [GitHub Releases](https://github.com/pdahlbeck/hafthi-mac/releases). Unzip `Hafthi-0.1.0-beta.2-macOS-arm64.zip` and drag `Hafþi.app` to Applications. macOS 13 or later is required; Xcode and the Command Line Tools are **not** required to run the downloaded app.
+Download the latest beta from [GitHub Releases](https://github.com/pdahlbeck/hafthi-mac/releases). Unzip `Hafthi-0.1.0-beta.3-macOS-arm64.zip` and drag `Hafþi.app` to Applications. macOS 13 or later is required; Xcode and the Command Line Tools are **not** required to run the downloaded app.
 
 This beta has not been notarized with an Apple Developer ID. If macOS blocks it the first time, try to open the app, then go to **System Settings → Privacy & Security → Open Anyway** to approve this app. There is no need to disable Gatekeeper for the whole Mac.
 
 Fish is optional. Install it separately with `brew install fish` if you want to use it; otherwise Hafþi opens your normal login shell. Fish is not included in the download.
+
+[Starship](https://starship.rs/) is optional too. Install it separately with `brew install starship`. When Fish and Starship are installed, Hafþi enables the Starship prompt in new Fish windows by default. Turn this off in Preferences (⌘,) if you prefer your own Fish prompt. Hafþi does not bundle Starship or change `config.fish`; a Starship setup already in your Fish configuration takes precedence. The setting applies to new windows only. Starship installed without Fish can be configured for your login shell using [Starship's guide](https://starship.rs/guide/).
 
 ## Build from source
 
@@ -24,7 +26,7 @@ swift run --build-system native HafthiMac
 
 This opens a window with Fish if installed, or your normal login shell otherwise. The shell runs in a macOS pseudo-terminal and commands run on your Mac. Use Command+C and Command+V for copy and paste. Use Control+C to interrupt a command.
 
-Hafþi supports ANSI colors, interactive full-screen applications, selection, scrollback, Command+N for a new window, Control+mouse wheel for font zoom, and a right-click menu. Preferences (Command+,) control font and colors, transparency, padding, scrollback, an optional image or GIF background, and whether Fish shows its startup greeting. The greeting is hidden by default inside Hafþi; other terminals and your Fish configuration are unaffected. Settings are saved in `~/Library/Application Support/Hafthi/config.json`.
+Hafþi supports ANSI colors, interactive full-screen applications, selection, scrollback, Command+N for a new window, Control+mouse wheel for font zoom, and a right-click menu. Preferences (Command+,) control font and colors, transparency, padding, scrollback, an optional image or GIF background, Fish's startup greeting, and the optional Starship prompt. The greeting is hidden by default inside Hafþi; other terminals and your Fish configuration are unaffected. Settings are saved in `~/Library/Application Support/Hafthi/config.json`.
 
 Optional command help can be enabled in Preferences. [tgpt](https://github.com/aandrew-me/tgpt) can be installed with `brew install tgpt`; questions are sent to its online provider, and suggested commands are never executed for you.
 
@@ -46,3 +48,4 @@ This is a macOS port under development. The Linux GPU renderer's custom preferen
 MIT
 
 SwiftTerm is also MIT licensed; see its [LICENSE](https://github.com/migueldeicaza/SwiftTerm/blob/v1.19.0/LICENSE).
+Starship is installed by the user and is not included in Hafþi. It is [ISC licensed](https://github.com/starship/starship/blob/main/LICENSE).
