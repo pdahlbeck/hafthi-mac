@@ -5,10 +5,6 @@ let package = Package(
     name: "HafthiMac",
     platforms: [.macOS(.v13)],
     products: [.executable(name: "HafthiMac", targets: ["HafthiMac"])],
-    targets: [
-        .target(name: "PTYSupport"),
-        .target(name: "TerminalCore"),
-        .executableTarget(name: "HafthiMac", dependencies: ["PTYSupport", "TerminalCore"]),
-        .testTarget(name: "TerminalCoreTests", dependencies: ["TerminalCore"])
-    ]
+    dependencies: [.package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.19.0")],
+    targets: [.executableTarget(name: "HafthiMac", dependencies: [.product(name: "SwiftTerm", package: "SwiftTerm")])]
 )

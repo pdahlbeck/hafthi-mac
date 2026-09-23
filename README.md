@@ -1,6 +1,6 @@
 # Hafþi for macOS
 
-An experimental native macOS port of [Hafþi](https://github.com/pdahlbeck/hafthi), written in Swift and AppKit. This repository starts with a working terminal prototype for Apple Silicon; the Linux renderer, preferences and full escape-sequence support are not yet ported.
+An experimental native macOS port of [Hafþi](https://github.com/pdahlbeck/hafthi), written in Swift and AppKit. It uses [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) for terminal emulation and optional Metal rendering.
 
 ## Requirements
 
@@ -19,6 +19,10 @@ swift run --build-system native HafthiMac
 
 This opens a window with Fish if installed, or your normal login shell otherwise. The shell runs in a macOS pseudo-terminal and commands run on your Mac. Use Command+C and Command+V for copy and paste. Use Control+C to interrupt a command.
 
+Hafþi Mac supports ANSI colors, interactive full-screen applications, selection, scrollback, Command+N for a new window, Control+mouse wheel for font zoom, and a right-click menu. Preferences (Command+,) control font and colors, transparency, padding, scrollback, and an optional image or GIF background. Settings are saved in `~/Library/Application Support/Hafthi/config.json`.
+
+Optional command help can be enabled in Preferences. [tgpt](https://github.com/aandrew-me/tgpt) can be installed with `brew install tgpt`; questions are sent to its online provider, and suggested commands are never executed for you.
+
 ## Build an app
 
 ```sh
@@ -30,8 +34,10 @@ The locally built app is unsigned. For distributing it to other Macs, code signi
 
 ## Status
 
-This is a first macOS prototype. It currently renders shell text with AppKit rather than Hafþi's GPU renderer. Fish's prompt can redraw the input line and its startup terminal queries are handled, but terminal colors and full-screen programs such as vim are not yet correctly rendered. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
+This is a macOS port under development. The Linux GPU renderer's custom preferences design and Wayland transparency are not ported directly; the Mac version uses AppKit and optional Metal. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
 
 ## License
 
 MIT
+
+SwiftTerm is also MIT licensed; see its [LICENSE](https://github.com/migueldeicaza/SwiftTerm/blob/v1.19.0/LICENSE).

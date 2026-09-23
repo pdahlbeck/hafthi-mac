@@ -1,89 +1,122 @@
 import AppKit
 import Darwin
-import Foundation
-import PTYSupport
-import TerminalCore
+import SwiftTerm
 
-private final class TerminalView: NSTextView {
-    var sendInput: ((Data) -> Void)?
+final class HafthiTerminalView: LocalProcessTerminalView {
+    weak var owner: AppDelegate?
 
-    override func keyDown(with event: NSEvent) {
-        if event.modifierFlags.contains(.command) {
-            super.keyDown(with: event)
-            return
-        }
+    override func menu(for event: NSEvent) -> NSMenu? { owner?.contextMenu(for: self) }
+}
 
-        let key: String
-        switch event.keyCode {
-        case 36, 76: key = "\r"  // Return
-        case 51: key = "\u{7f}"  // Delete
-        case 48: key = "\t"      // Tab
-        case 53: key = "\u{1b}"  // Escape
-        case 123: key = "\u{1b}[D"
-        case 124: key = "\u{1b}[C"
-        case 125: key = "\u{1b}[B"
-        case 126: key = "\u{1b}[A"
-        default:
-            guard let characters = event.characters, !characters.isEmpty else { return }
-            key = characters
-        }
-        sendInput?(Data(key.utf8))
+final class TerminalWindow: NSWindow {
+    let terminal: HafthiTerminalView
+    private let imageView = NSImageView()
+    private var imageBottomConstraint: NSLayoutConstraint!
+    private var imageHeightConstraint: NSLayoutConstraint!
+    private var edgeConstraints: [NSLayoutConstraint] = []
+    private var topConstraint: NSLayoutConstraint!
+    private var appliedScrollback = 0
+    private var appliedImagePath = ""
+    private var appliedImageMode = ""
+
+    init(settings: MacSettings, owner: AppDelegate) {
+        let frame = NSRect(x: 0, y: 0, width: 980, height: 640)
+        terminal = HafthiTerminalView(frame: frame, font: nil,
+                                      options: TerminalOptions(scrollback: max(100, settings.scrollback)))
+        super.init(contentRect: frame,
+                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                   backing: .buffered, defer: false)
+        title = "Hafþi"
+        center()
+        isOpaque = false
+        backgroundColor = .clear
+        terminal.owner = owner
+
+        guard let contentView else { return }
+        contentView.wantsLayer = true
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.animates = true
+        contentView.addSubview(imageView)
+        imageBottomConstraint = imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        imageHeightConstraint = imageView.heightAnchor.constraint(equalToConstant: 150)
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            imageView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            imageBottomConstraint
+        ])
+
+        terminal.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(terminal)
+        let left = terminal.leadingAnchor.constraint(equalTo: contentView.leadingAnchor)
+        let right = terminal.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+        let bottom = terminal.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        topConstraint = terminal.topAnchor.constraint(equalTo: contentView.topAnchor)
+        edgeConstraints = [left, right, bottom]
+        NSLayoutConstraint.activate(edgeConstraints + [topConstraint])
+        apply(settings)
     }
 
-    override func paste(_ sender: Any?) {
-        guard let value = NSPasteboard.general.string(forType: .string) else { return }
-        sendInput?(Data(value.replacingOccurrences(of: "\n", with: "\r").utf8))
-    }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.contains(.command),
-           event.charactersIgnoringModifiers?.lowercased() == "v" {
-            paste(nil)
-            return true
+    func apply(_ settings: MacSettings) {
+        let fallbackFont = NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
+        let requestedFont = settings.fontFamily == "System Monospaced"
+            ? fallbackFont : (NSFont(name: settings.fontFamily, size: CGFloat(settings.fontSize)) ?? fallbackFont)
+        if terminal.font.fontName != requestedFont.fontName || terminal.font.pointSize != requestedFont.pointSize {
+            terminal.font = requestedFont
         }
-        return super.performKeyEquivalent(with: event)
+        terminal.nativeForegroundColor = NSColor(hafthiHex: settings.foreground) ?? .white
+        terminal.nativeBackgroundColor = NSColor(hafthiHex: settings.background) ?? .black
+        terminal.backgroundOpacity = CGFloat(settings.opacity)
+        terminal.caretColor = NSColor(hafthiHex: settings.cursor) ?? .white
+        terminal.selectedTextBackgroundColor = NSColor.systemBlue.withAlphaComponent(0.55)
+        if appliedScrollback != settings.scrollback {
+            terminal.getTerminal().changeScrollback(max(100, settings.scrollback))
+            appliedScrollback = settings.scrollback
+        }
+
+        let pad = CGFloat(settings.padding)
+        edgeConstraints[0].constant = pad
+        edgeConstraints[1].constant = -pad
+        edgeConstraints[2].constant = -pad
+        topConstraint.constant = pad + (settings.backgroundMode == "banner" ? 150 : 0)
+        imageBottomConstraint.isActive = settings.backgroundMode != "banner"
+        imageHeightConstraint.isActive = settings.backgroundMode == "banner"
+        if appliedImageMode != settings.backgroundMode || appliedImagePath != settings.imagePath {
+            if settings.backgroundMode != "off", !settings.imagePath.isEmpty,
+               let image = NSImage(contentsOfFile: settings.imagePath) {
+                imageView.image = image
+                imageView.isHidden = false
+            } else {
+                imageView.image = nil
+                imageView.isHidden = true
+            }
+            appliedImageMode = settings.backgroundMode
+            appliedImagePath = settings.imagePath
+        }
     }
 }
 
-private final class TerminalSession {
-    let view: TerminalView
-    private var masterFD: Int32 = -1
-    private var childPID: pid_t = -1
-    private let inputQueue = DispatchQueue(label: "HafthiMac.PTYInput")
-    private var screen = TerminalScreen()
-    private var pendingUTF8 = Data()
-    private var rows: UInt16 = 24
-    private var columns: UInt16 = 80
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, LocalProcessTerminalViewDelegate {
+    private var settings = MacSettings.load()
+    private var windows: [ObjectIdentifier: TerminalWindow] = [:]
+    private var preferences: PreferencesWindow?
+    private weak var lastTerminal: HafthiTerminalView?
+    private var scrollMonitor: Any?
 
-    init(view: TerminalView) {
-        self.view = view
-        view.sendInput = { [weak self] data in
-            self?.send(data)
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.applicationIconImage = HafthiIcon.make()
+        settings.save()
+        installMenu()
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard event.modifierFlags.contains(.control), event.window is TerminalWindow else { return event }
+            self?.adjustFont(by: event.scrollingDeltaY > 0 ? 1 : -1)
+            return nil
         }
+        openWindow(nil)
     }
 
-    func start() {
-        let shell = Self.preferredShell()
-        // Fish needs a real interactive terminal for its prompt and suggestions.
-        setenv("TERM", "xterm-256color", 1)
-        setenv("COLORTERM", "truecolor", 1)
-        let home = NSHomeDirectory()
-        var fd: Int32 = -1
-        let pid = shell.withCString { shellPath in
-            home.withCString { homePath in
-                hafthi_spawn_shell(shellPath, homePath, &fd, columns, rows)
-            }
-        }
-        guard pid > 0 else {
-            view.string = "Unable to start \(shell): \(String(cString: strerror(errno)))\n"
-            return
-        }
-        masterFD = fd
-        childPID = pid
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.readOutput(fd: fd, child: pid)
-        }
-    }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     private static func preferredShell() -> String {
         let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
@@ -92,151 +125,165 @@ private final class TerminalSession {
         if let fish = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
             return fish
         }
-        let loginShell: String?
         if let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell {
-            loginShell = String(cString: shell)
-        } else {
-            loginShell = nil
+            let path = String(cString: shell)
+            if FileManager.default.isExecutableFile(atPath: path) { return path }
         }
-        let fallback = loginShell ?? ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-        return FileManager.default.isExecutableFile(atPath: fallback) ? fallback : "/bin/zsh"
+        return "/bin/zsh"
     }
 
-    private func send(_ data: Data) {
-        guard masterFD >= 0 else { return }
-        let fd = masterFD
-        inputQueue.async {
-            data.withUnsafeBytes { raw in
-                guard let base = raw.baseAddress else { return }
-                var offset = 0
-                while offset < raw.count {
-                    let written = Darwin.write(fd, base.advanced(by: offset), raw.count - offset)
-                    if written < 0 && errno == EINTR { continue }
-                    if written <= 0 { break }
-                    offset += written
-                }
-            }
-        }
-    }
-
-    func resize(columns: Int, rows: Int) {
-        let newColumns = UInt16(clamping: max(1, columns))
-        let newRows = UInt16(clamping: max(1, rows))
-        guard newColumns != self.columns || newRows != self.rows else { return }
-        self.columns = newColumns
-        self.rows = newRows
-        screen.resize(columns: Int(newColumns))
-        if masterFD >= 0 { _ = hafthi_resize_pty(masterFD, newColumns, newRows) }
-    }
-
-    private func readOutput(fd: Int32, child: pid_t) {
-        var bytes = [UInt8](repeating: 0, count: 8192)
-        while true {
-            let count = bytes.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress, $0.count) }
-            if count < 0 && errno == EINTR { continue }
-            if count <= 0 { break }
-            let data = Data(bytes.prefix(count))
-            DispatchQueue.main.async { [weak self] in self?.receive(data) }
-        }
-        var status: Int32 = 0
-        _ = waitpid(child, &status, 0)
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.childPID == child else { return }
-            self.childPID = -1
-            self.inputQueue.async { _ = Darwin.close(fd) }
-            self.masterFD = -1
-        }
-    }
-
-    func stop() {
-        if childPID > 0 { _ = kill(childPID, SIGHUP); childPID = -1 }
-        if masterFD >= 0 {
-            let fd = masterFD
-            masterFD = -1
-            inputQueue.async { _ = Darwin.close(fd) }
-        }
-    }
-
-    private func receive(_ data: Data) {
-        pendingUTF8.append(data)
-        guard !pendingUTF8.isEmpty else { return }
-        // Preserve an incomplete UTF-8 character across PTY reads.
-        let bytes = [UInt8](pendingUTF8)
-        var lead = bytes.count - 1
-        while lead > 0 && (bytes[lead] & 0xc0) == 0x80 { lead -= 1 }
-        let first = bytes[lead]
-        let expected = first < 0x80 ? 1 : first < 0xe0 ? 2 : first < 0xf0 ? 3 : 4
-        let length = bytes.count - lead < expected ? lead : bytes.count
-        guard length > 0 else { return }
-        let decoded = String(decoding: bytes.prefix(length), as: UTF8.self)
-        pendingUTF8 = Data(bytes.dropFirst(length))
-        let replies = screen.consume(decoded)
-        for reply in replies { send(Data(reply.utf8)) }
-        view.string = screen.text
-        view.scrollToEndOfDocument(nil)
-    }
-}
-
-private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    private var window: NSWindow?
-    private var session: TerminalSession?
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 590),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Hafþi"
-        window.center()
+    @objc func openWindow(_ sender: Any?) {
+        let window = TerminalWindow(settings: settings, owner: self)
         window.delegate = self
-
-        let scroll = NSScrollView(frame: window.contentView!.bounds)
-        scroll.autoresizingMask = [.width, .height]
-        scroll.hasVerticalScroller = true
-        let view = TerminalView(frame: scroll.bounds)
-        view.isEditable = false
-        view.isSelectable = true
-        view.backgroundColor = NSColor(calibratedRed: 0.11, green: 0.13, blue: 0.16, alpha: 1)
-        view.textColor = .white
-        view.font = NSFont.monospacedSystemFont(ofSize: 15, weight: .regular)
-        view.textContainerInset = NSSize(width: 16, height: 16)
-        view.autoresizingMask = [.width]
-        scroll.documentView = view
-        window.contentView?.addSubview(scroll)
-
-        let session = TerminalSession(view: view)
-        self.session = session
-        self.window = window
+        windows[ObjectIdentifier(window)] = window
+        let terminal = window.terminal
+        lastTerminal = terminal
+        terminal.processDelegate = self
+        terminal.optionAsMetaKey = false // Option should still type å, ä, ö and other characters.
+        terminal.linkReporting = .implicit
+        do { try terminal.setUseMetal(true) } catch { /* CoreGraphics remains available. */ }
         window.makeKeyAndOrderFront(nil)
-        window.makeFirstResponder(view)
+        window.makeFirstResponder(terminal)
         NSApp.activate(ignoringOtherApps: true)
-        updateTerminalSize()
-        session.start()
-    }
-
-    func windowDidResize(_ notification: Notification) { updateTerminalSize() }
-
-    private func updateTerminalSize() {
-        guard let window, let session, let view = session.view.font else { return }
-        let cellWidth = ("M" as NSString).size(withAttributes: [.font: view]).width
-        let lineHeight = session.view.layoutManager?.defaultLineHeight(for: view) ?? view.pointSize * 1.2
-        let size = window.contentView?.bounds.size ?? .zero
-        let insets = session.view.textContainerInset
-        let columns = Int((size.width - 2 * insets.width - 20) / max(1, cellWidth))
-        let rows = Int((size.height - 2 * insets.height) / max(1, lineHeight))
-        session.resize(columns: max(1, columns), rows: max(1, rows))
+        terminal.startProcess(executable: Self.preferredShell(), args: ["-l"],
+                              currentDirectory: NSHomeDirectory())
     }
 
     func windowWillClose(_ notification: Notification) {
-        session?.stop()
-        NSApp.terminate(nil)
+        guard let window = notification.object as? TerminalWindow else { return }
+        window.terminal.terminate()
+        windows.removeValue(forKey: ObjectIdentifier(window))
     }
 
-    func applicationWillTerminate(_ notification: Notification) { session?.stop() }
+    func processTerminated(source: SwiftTerm.TerminalView, exitCode: Int32?) {
+        source.window?.close()
+    }
+
+    func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
+        source.window?.title = title.isEmpty ? "Hafþi" : "\(title) — Hafþi"
+    }
+
+    func hostCurrentDirectoryUpdate(source: SwiftTerm.TerminalView, directory: String?) {}
+    func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
+
+    private var activeTerminal: HafthiTerminalView? {
+        (NSApp.keyWindow as? TerminalWindow)?.terminal ?? lastTerminal
+    }
+
+    func adjustFont(by amount: Int) {
+        settings.fontSize = min(40, max(9, settings.fontSize + Double(amount)))
+        settingsChanged(refreshPreferences: true)
+    }
+
+    private func settingsChanged(refreshPreferences: Bool = false) {
+        settings.save()
+        for window in windows.values { window.apply(settings) }
+        installMenu()
+        if refreshPreferences { preferences?.refresh(settings) }
+    }
+
+    @objc private func largerFont(_ sender: Any?) { adjustFont(by: 1) }
+    @objc private func smallerFont(_ sender: Any?) { adjustFont(by: -1) }
+    @objc private func resetFont(_ sender: Any?) {
+        settings.fontSize = 15
+        settingsChanged(refreshPreferences: true)
+    }
+    @objc private func copySelection(_ sender: Any?) { activeTerminal?.copy(sender ?? self) }
+    @objc private func pasteClipboard(_ sender: Any?) { activeTerminal?.paste(sender ?? self) }
+    @objc private func selectTerminal(_ sender: Any?) { activeTerminal?.selectAll(sender) }
+    @objc private func clearHistory(_ sender: Any?) { activeTerminal?.getTerminal().clearScrollback() }
+
+    @objc private func showPreferences(_ sender: Any?) {
+        if preferences == nil {
+            let controller = PreferencesWindow(settings: settings)
+            controller.onChange = { [weak self] newSettings in
+                self?.settings = newSettings
+                self?.settingsChanged()
+            }
+            controller.onAsk = { [weak self] question in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal,
+                              data: Array(CommandHelp.shellCommand(question: question).utf8)[...])
+            }
+            controller.onInstall = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal, data: Array("brew install tgpt".utf8)[...])
+            }
+            preferences = controller
+        }
+        preferences?.showWindow(nil)
+        preferences?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func askTgpt(_ sender: Any?) {
+        showPreferences(sender)
+        preferences?.focusQuestion()
+    }
+
+    @objc private func editConfig(_ sender: Any?) { NSWorkspace.shared.open(MacSettings.url) }
+    @objc private func quit(_ sender: Any?) { NSApp.terminate(nil) }
+
+    private func item(_ title: String, action: Selector, key: String = "") -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        return item
+    }
+
+    private func installMenu() {
+        let bar = NSMenu()
+        let appItem = NSMenuItem()
+        let appMenu = NSMenu(title: "Hafþi")
+        appMenu.addItem(item("New Window", action: #selector(openWindow(_:)), key: "n"))
+        appMenu.addItem(item("Preferences…", action: #selector(showPreferences(_:)), key: ","))
+        if settings.commandHelpEnabled {
+            let ask = item("Ask tgpt…", action: #selector(askTgpt(_:)), key: "h")
+            ask.keyEquivalentModifierMask = [.control, .shift]
+            appMenu.addItem(ask)
+        }
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(item("Quit Hafþi", action: #selector(quit(_:)), key: "q"))
+        bar.addItem(appItem)
+        bar.setSubmenu(appMenu, for: appItem)
+
+        let editItem = NSMenuItem()
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(item("Copy", action: #selector(copySelection(_:)), key: "c"))
+        editMenu.addItem(item("Paste", action: #selector(pasteClipboard(_:)), key: "v"))
+        editMenu.addItem(item("Select All", action: #selector(selectTerminal(_:)), key: "a"))
+        editMenu.addItem(NSMenuItem.separator())
+        editMenu.addItem(item("Increase Font", action: #selector(largerFont(_:)), key: "+"))
+        editMenu.addItem(item("Decrease Font", action: #selector(smallerFont(_:)), key: "-"))
+        bar.addItem(editItem)
+        bar.setSubmenu(editMenu, for: editItem)
+        NSApp.mainMenu = bar
+    }
+
+    func contextMenu(for terminal: HafthiTerminalView) -> NSMenu {
+        lastTerminal = terminal
+        let menu = NSMenu(title: "Hafþi")
+        menu.addItem(item("Copy", action: #selector(copySelection(_:))))
+        menu.addItem(item("Paste", action: #selector(pasteClipboard(_:))))
+        menu.addItem(item("Select All", action: #selector(selectTerminal(_:))))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(item("New Window", action: #selector(openWindow(_:))))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(item("Increase Font", action: #selector(largerFont(_:))))
+        menu.addItem(item("Decrease Font", action: #selector(smallerFont(_:))))
+        menu.addItem(item("Reset Font Size", action: #selector(resetFont(_:))))
+        menu.addItem(item("Clear Scrollback", action: #selector(clearHistory(_:))))
+        menu.addItem(NSMenuItem.separator())
+        if settings.commandHelpEnabled {
+            menu.addItem(item("Ask tgpt…", action: #selector(askTgpt(_:))))
+        }
+        menu.addItem(item("Preferences…", action: #selector(showPreferences(_:))))
+        menu.addItem(item("Edit Hafþi Config", action: #selector(editConfig(_:))))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(item("Quit", action: #selector(quit(_:))))
+        return menu
+    }
 }
 
+CommandHelp.handleIfRequested()
 let app = NSApplication.shared
 private let delegate = AppDelegate()
 app.delegate = delegate
