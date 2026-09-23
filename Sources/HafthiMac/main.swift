@@ -81,13 +81,11 @@ private final class TerminalSession {
         pendingUTF8.append(data)
         // Preserve an incomplete UTF-8 character across pipe reads.
         let bytes = [UInt8](pendingUTF8)
-        var length = bytes.count
-        while length > 0 && (bytes[length - 1] & 0xc0) == 0x80 { length -= 1 }
-        if length > 0 {
-            let first = bytes[length - 1]
-            let expected = first < 0x80 ? 1 : first < 0xe0 ? 2 : first < 0xf0 ? 3 : 4
-            if bytes.count - length + 1 < expected { length -= 1 }
-        }
+        var lead = bytes.count - 1
+        while lead > 0 && (bytes[lead] & 0xc0) == 0x80 { lead -= 1 }
+        let first = bytes[lead]
+        let expected = first < 0x80 ? 1 : first < 0xe0 ? 2 : first < 0xf0 ? 3 : 4
+        let length = bytes.count - lead < expected ? lead : bytes.count
         guard length > 0, let decoded = String(bytes: bytes.prefix(length), encoding: .utf8) else { return }
         pendingUTF8 = Data(bytes.dropFirst(length))
         for character in decoded {
