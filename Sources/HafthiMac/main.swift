@@ -219,7 +219,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(terminal)
         NSApp.activate(ignoringOtherApps: true)
-        terminal.startProcess(executable: Self.preferredShell(), args: ["-l"],
+        let shell = Self.preferredShell()
+        var args = ["-l"]
+        if URL(fileURLWithPath: shell).lastPathComponent == "fish", settings.showFishGreeting != true {
+            // Run after fish reads config.fish, before it prints its interactive greeting.
+            // This only affects the fish process launched by Hafþi.
+            args += ["-C", "function fish_greeting; end"]
+        }
+        terminal.startProcess(executable: shell, args: args,
                               currentDirectory: NSHomeDirectory())
     }
 
