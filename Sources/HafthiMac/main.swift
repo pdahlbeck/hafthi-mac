@@ -194,11 +194,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    private static func preferredShell() -> String {
+    private static func preferredShell(useFish: Bool) -> String {
         let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
         let candidates = ["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/opt/local/bin/fish"]
             + path.split(separator: ":").map { "\($0)/fish" }
-        if let fish = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
+        if useFish, let fish = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
             return fish
         }
         if let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell {
@@ -234,7 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(terminal)
         NSApp.activate(ignoringOtherApps: true)
-        let shell = Self.preferredShell()
+        let shell = Self.preferredShell(useFish: settings.useFish != false)
         var args = ["-l"]
         if URL(fileURLWithPath: shell).lastPathComponent == "fish" {
             var commands: [String] = []

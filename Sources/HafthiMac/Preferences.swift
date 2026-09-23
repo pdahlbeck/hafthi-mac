@@ -14,6 +14,7 @@ struct MacSettings: Codable {
     var imagePath = ""
     var commandHelpEnabled = false
     // Optional so settings saved by earlier versions still decode correctly.
+    var useFish: Bool? = nil
     var showFishGreeting: Bool? = nil
     var useStarship: Bool? = nil
 
@@ -236,6 +237,18 @@ final class PreferencesWindow: NSWindowController {
         NSWorkspace.shared.open(url)
     }
 
+    @objc private func togglePluginFromOverview(_ sender: NSSwitch) {
+        guard let plugin = Plugin(rawValue: sender.tag) else { return }
+        let enabled = sender.state == .on
+        switch plugin {
+        case .fish: settings.useFish = enabled
+        case .starship: settings.useStarship = enabled
+        case .tgpt: settings.commandHelpEnabled = enabled
+        }
+        refresh(settings)
+        changed()
+    }
+
     private func buildAppearance(in stack: NSStackView) {
         familyInput.stringValue = settings.fontFamily
         familyInput.placeholderString = "System Monospaced, Menlo, JetBrains Mono…"
@@ -332,6 +345,15 @@ final class PreferencesWindow: NSWindowController {
         chevron.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(chevron)
 
+        let toggle = NSSwitch(frame: .zero)
+        toggle.tag = plugin.rawValue
+        toggle.target = self
+        toggle.action = #selector(togglePluginFromOverview(_:))
+        toggle.state = pluginEnabled(plugin) ? .on : .off
+        toggle.setAccessibilityLabel("Enable \(plugin.title)")
+        toggle.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(toggle)
+
         let button = NSButton(title: "", target: self, action: #selector(openPlugin(_:)))
         button.tag = plugin.rawValue
         button.isBordered = false
@@ -350,19 +372,34 @@ final class PreferencesWindow: NSWindowController {
             title.bottomAnchor.constraint(equalTo: card.centerYAnchor, constant: -2),
             subtitle.leadingAnchor.constraint(equalTo: title.leadingAnchor),
             subtitle.topAnchor.constraint(equalTo: card.centerYAnchor, constant: 4),
-            chevron.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -20),
+            subtitle.trailingAnchor.constraint(lessThanOrEqualTo: chevron.leadingAnchor, constant: -10),
+            toggle.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -18),
+            toggle.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            chevron.trailingAnchor.constraint(equalTo: toggle.leadingAnchor, constant: -14),
             chevron.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             button.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            button.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            button.trailingAnchor.constraint(equalTo: chevron.trailingAnchor, constant: 8),
             button.topAnchor.constraint(equalTo: card.topAnchor),
             button.bottomAnchor.constraint(equalTo: card.bottomAnchor)
         ])
         return card
     }
 
+    private func pluginEnabled(_ plugin: Plugin) -> Bool {
+        switch plugin {
+        case .fish: return settings.useFish != false
+        case .starship: return settings.useStarship != false
+        case .tgpt: return settings.commandHelpEnabled
+        }
+    }
+
     private func buildFishSettings(in stack: NSStackView) {
-        stack.addArrangedSubview(detail("Uses Fish automatically when installed. Open a new window to switch shells."))
+        stack.addArrangedSubview(detail("When enabled, new windows use Fish if it is installed. When disabled, they use your login shell."))
         stack.addArrangedSubview(detail("Install it yourself with brew install fish."))
+        let fish = NSButton(checkboxWithTitle: "Use Fish in new windows when installed",
+                            target: self, action: #selector(toggleFish(_:)))
+        fish.state = settings.useFish != false ? .on : .off
+        stack.addArrangedSubview(fish)
         let greeting = NSButton(checkboxWithTitle: "Show fish welcome message in new windows",
                                 target: self, action: #selector(toggleFishGreeting(_:)))
         greeting.state = settings.showFishGreeting == true ? .on : .off
@@ -514,6 +551,11 @@ final class PreferencesWindow: NSWindowController {
 
     @objc private func toggleFishGreeting(_ sender: NSButton) {
         settings.showFishGreeting = sender.state == .on
+        changed()
+    }
+
+    @objc private func toggleFish(_ sender: NSButton) {
+        settings.useFish = sender.state == .on
         changed()
     }
 
