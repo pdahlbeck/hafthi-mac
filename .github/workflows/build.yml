@@ -1,0 +1,15 @@
+name: Build macOS
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: bash build-app.sh
+      - name: Check app bundle
+        run: test -x build/HafthiMac.app/Contents/MacOS/HafthiMac
