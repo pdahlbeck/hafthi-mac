@@ -140,13 +140,15 @@ final class TerminalWindow: NSWindow {
         let banner = settings.backgroundMode == "banner" && imageView.image != nil
         isBanner = banner
         bannerPadding = pad
-        // The window paints the default background in banner mode. Rendering it
-        // again in SwiftTerm would make the terminal a darker separate rectangle.
-        terminal.backgroundOpacity = banner ? 0 : CGFloat(settings.opacity)
-        backgroundColor = banner
+        // Paint one continuous background through the title bar, margins and
+        // terminal when there is no image or when the image is a banner.
+        // A second SwiftTerm background would make a separate dark rectangle.
+        let windowPaintsBackground = banner || imageView.image == nil
+        terminal.backgroundOpacity = windowPaintsBackground ? 0 : CGFloat(settings.opacity)
+        backgroundColor = windowPaintsBackground
             ? (NSColor(hafthiHex: settings.background) ?? .black).withAlphaComponent(CGFloat(settings.opacity))
             : .clear
-        titlebarAppearsTransparent = banner
+        titlebarAppearsTransparent = windowPaintsBackground
         imageTrailingConstraint.isActive = !banner
         imageBottomConstraint.isActive = !banner
         imageWidthConstraint.isActive = banner
