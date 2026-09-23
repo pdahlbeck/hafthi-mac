@@ -206,6 +206,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         return "/bin/zsh"
     }
 
+    private static func installedStarship() -> String? {
+        let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
+        let candidates = ["/opt/homebrew/bin/starship", "/usr/local/bin/starship",
+                          "/opt/local/bin/starship", "\(NSHomeDirectory())/.cargo/bin/starship"]
+            + path.split(separator: ":").map { "\($0)/starship" }
+        return candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+    }
+
+    private static func fishQuoted(_ path: String) -> String {
+        "'" + path.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'") + "'"
+    }
+
     @objc func openWindow(_ sender: Any?) {
         let window = TerminalWindow(settings: settings, owner: self)
         window.delegate = self
@@ -221,10 +234,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         NSApp.activate(ignoringOtherApps: true)
         let shell = Self.preferredShell()
         var args = ["-l"]
-        if URL(fileURLWithPath: shell).lastPathComponent == "fish", settings.showFishGreeting != true {
-            // Run after fish reads config.fish, before it prints its interactive greeting.
-            // This only affects the fish process launched by Hafþi.
-            args += ["-C", "function fish_greeting; end"]
+        if URL(fileURLWithPath: shell).lastPathComponent == "fish" {
+            var commands: [String] = []
+            if settings.showFishGreeting != true {
+                commands.append("function fish_greeting; end")
+            }
+            if settings.useStarship != false, let starship = Self.installedStarship() {
+                // -C runs after config.fish. Respect an existing Starship setup and
+                // use its absolute path even if a Finder launch has a minimal PATH.
+                commands.append("if not functions -q __starship_set_job_count; \(Self.fishQuoted(starship)) init fish | source; end")
+            }
+            if !commands.isEmpty {
+                args += ["-C", commands.joined(separator: "; ")]
+            }
         }
         terminal.startProcess(executable: shell, args: args,
                               currentDirectory: NSHomeDirectory())
