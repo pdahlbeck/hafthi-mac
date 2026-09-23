@@ -2,14 +2,19 @@
 
 An experimental native macOS port of [Hafþi](https://github.com/pdahlbeck/hafthi), written in Swift and AppKit. It uses [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) for terminal emulation and optional Metal rendering.
 
-## Requirements
+## Download for Apple Silicon
+
+Download the latest beta from [GitHub Releases](https://github.com/pdahlbeck/hafthi-mac/releases). Unzip `HafthiMac-0.1.0-beta.1-macOS-arm64.zip` and drag `HafthiMac.app` to Applications. macOS 13 or later is required; Xcode and the Command Line Tools are **not** required to run the downloaded app.
+
+This beta has not been notarized with an Apple Developer ID. If macOS blocks it the first time, try to open the app, then go to **System Settings → Privacy & Security → Open Anyway** to approve this app. There is no need to disable Gatekeeper for the whole Mac.
+
+Fish is optional. Install it separately with `brew install fish` if you want to use it; otherwise Hafþi opens your normal login shell. Fish is not included in the download.
+
+## Build from source
 
 - macOS 13 or later
 - Apple Silicon Mac
 - Xcode Command Line Tools (`xcode-select --install`)
-- Optional: [Fish](https://fishshell.com/) (`brew install fish`). Hafþi uses your login shell if Fish is not installed.
-
-## Run
 
 ```sh
 git clone https://github.com/pdahlbeck/hafthi-mac.git
@@ -30,7 +35,7 @@ bash build-app.sh
 open build/HafthiMac.app
 ```
 
-The locally built app is unsigned. For distributing it to other Macs, code signing and notarization will be needed.
+The downloadable beta is ad hoc signed for integrity, but is not notarized with an Apple Developer ID.
 
 ## Status
 
