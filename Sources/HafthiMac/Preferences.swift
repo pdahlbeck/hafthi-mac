@@ -2,7 +2,11 @@ import AppKit
 import UniformTypeIdentifiers
 
 struct MacSettings: Codable {
+    var fontFamily = "System Monospaced"
     var fontSize = 15.0
+    var foreground = "#f0f2f5"
+    var background = "#1a1f26"
+    var cursor = "#ffffff"
     var opacity = 0.65
     var padding = 16.0
     var scrollback = 15_000
@@ -32,6 +36,22 @@ struct MacSettings: Codable {
     }
 }
 
+extension NSColor {
+    convenience init?(hafthiHex: String) {
+        let text = hafthiHex.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard text.count == 6, let value = UInt32(text, radix: 16) else { return nil }
+        self.init(srgbRed: CGFloat((value >> 16) & 255) / 255,
+                  green: CGFloat((value >> 8) & 255) / 255,
+                  blue: CGFloat(value & 255) / 255, alpha: 1)
+    }
+
+    var hafthiHex: String {
+        let color = usingColorSpace(.sRGB) ?? self
+        return String(format: "#%02X%02X%02X", Int(color.redComponent * 255),
+                      Int(color.greenComponent * 255), Int(color.blueComponent * 255))
+    }
+}
+
 final class PreferencesWindow: NSWindowController {
     private var settings: MacSettings
     var onChange: ((MacSettings) -> Void)?
@@ -43,10 +63,11 @@ final class PreferencesWindow: NSWindowController {
     private let historyValue = NSTextField(labelWithString: "")
     private let imageName = NSTextField(labelWithString: "")
     private let questionInput = NSTextField(string: "")
+    private let familyInput = NSTextField(string: "")
 
     init(settings: MacSettings) {
         self.settings = settings
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 540),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 700),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Hafþi Preferences"
         window.center()
@@ -76,9 +97,19 @@ final class PreferencesWindow: NSWindowController {
             stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 24)
         ])
 
+        familyInput.stringValue = settings.fontFamily
+        familyInput.placeholderString = "System Monospaced, Menlo, JetBrains Mono…"
+        familyInput.target = self
+        familyInput.action = #selector(changeFamily(_:))
+        stack.addArrangedSubview(row("Font family", familyInput, nil))
+
         let font = slider(value: settings.fontSize, min: 9, max: 40, action: #selector(changeFont(_:)))
         fontValue.stringValue = "\(Int(settings.fontSize)) pt"
         stack.addArrangedSubview(row("Font size", font, fontValue))
+
+        stack.addArrangedSubview(row("Text color", colorWell(settings.foreground, #selector(changeForeground(_:))), nil))
+        stack.addArrangedSubview(row("Background color", colorWell(settings.background, #selector(changeBackgroundColor(_:))), nil))
+        stack.addArrangedSubview(row("Cursor color", colorWell(settings.cursor, #selector(changeCursorColor(_:))), nil))
 
         let opacity = slider(value: settings.opacity, min: 0, max: 1, action: #selector(changeOpacity(_:)))
         opacityValue.stringValue = "\(Int(settings.opacity * 100))%"
@@ -139,7 +170,35 @@ final class PreferencesWindow: NSWindowController {
         NSSlider(value: value, minValue: min, maxValue: max, target: self, action: action)
     }
 
+    private func colorWell(_ hex: String, _ action: Selector) -> NSColorWell {
+        let well = NSColorWell(frame: NSRect(x: 0, y: 0, width: 220, height: 25))
+        well.color = NSColor(hafthiHex: hex) ?? .white
+        well.target = self
+        well.action = action
+        return well
+    }
+
     private func changed() { onChange?(settings) }
+
+    @objc private func changeFamily(_ sender: NSTextField) {
+        settings.fontFamily = sender.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        changed()
+    }
+
+    @objc private func changeForeground(_ sender: NSColorWell) {
+        settings.foreground = sender.color.hafthiHex
+        changed()
+    }
+
+    @objc private func changeBackgroundColor(_ sender: NSColorWell) {
+        settings.background = sender.color.hafthiHex
+        changed()
+    }
+
+    @objc private func changeCursorColor(_ sender: NSColorWell) {
+        settings.cursor = sender.color.hafthiHex
+        changed()
+    }
 
     @objc private func changeFont(_ sender: NSSlider) {
         settings.fontSize = Double(Int(sender.doubleValue))

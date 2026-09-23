@@ -15,6 +15,9 @@ final class TerminalWindow: NSWindow {
     private var imageHeightConstraint: NSLayoutConstraint!
     private var edgeConstraints: [NSLayoutConstraint] = []
     private var topConstraint: NSLayoutConstraint!
+    private var appliedScrollback = 0
+    private var appliedImagePath = ""
+    private var appliedImageMode = ""
 
     init(settings: MacSettings, owner: AppDelegate) {
         let frame = NSRect(x: 0, y: 0, width: 980, height: 640)
@@ -56,13 +59,21 @@ final class TerminalWindow: NSWindow {
     }
 
     func apply(_ settings: MacSettings) {
-        terminal.font = NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
-        terminal.nativeForegroundColor = NSColor(srgbRed: 0.94, green: 0.95, blue: 0.96, alpha: 1)
-        terminal.nativeBackgroundColor = NSColor(srgbRed: 0.10, green: 0.12, blue: 0.15, alpha: 1)
+        let fallbackFont = NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
+        let requestedFont = settings.fontFamily == "System Monospaced"
+            ? fallbackFont : (NSFont(name: settings.fontFamily, size: CGFloat(settings.fontSize)) ?? fallbackFont)
+        if terminal.font.fontName != requestedFont.fontName || terminal.font.pointSize != requestedFont.pointSize {
+            terminal.font = requestedFont
+        }
+        terminal.nativeForegroundColor = NSColor(hafthiHex: settings.foreground) ?? .white
+        terminal.nativeBackgroundColor = NSColor(hafthiHex: settings.background) ?? .black
         terminal.backgroundOpacity = CGFloat(settings.opacity)
-        terminal.caretColor = .white
+        terminal.caretColor = NSColor(hafthiHex: settings.cursor) ?? .white
         terminal.selectedTextBackgroundColor = NSColor.systemBlue.withAlphaComponent(0.55)
-        terminal.getTerminal().changeScrollback(max(100, settings.scrollback))
+        if appliedScrollback != settings.scrollback {
+            terminal.getTerminal().changeScrollback(max(100, settings.scrollback))
+            appliedScrollback = settings.scrollback
+        }
 
         let pad = CGFloat(settings.padding)
         edgeConstraints[0].constant = pad
@@ -71,13 +82,17 @@ final class TerminalWindow: NSWindow {
         topConstraint.constant = pad + (settings.backgroundMode == "banner" ? 150 : 0)
         imageBottomConstraint.isActive = settings.backgroundMode != "banner"
         imageHeightConstraint.isActive = settings.backgroundMode == "banner"
-        if settings.backgroundMode != "off", !settings.imagePath.isEmpty,
-           let image = NSImage(contentsOfFile: settings.imagePath) {
-            imageView.image = image
-            imageView.isHidden = false
-        } else {
-            imageView.image = nil
-            imageView.isHidden = true
+        if appliedImageMode != settings.backgroundMode || appliedImagePath != settings.imagePath {
+            if settings.backgroundMode != "off", !settings.imagePath.isEmpty,
+               let image = NSImage(contentsOfFile: settings.imagePath) {
+                imageView.image = image
+                imageView.isHidden = false
+            } else {
+                imageView.image = nil
+                imageView.isHidden = true
+            }
+            appliedImageMode = settings.backgroundMode
+            appliedImagePath = settings.imagePath
         }
     }
 }
