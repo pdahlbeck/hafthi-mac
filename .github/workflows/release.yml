@@ -17,7 +17,7 @@ jobs:
         run: |
           test "$(uname -m)" = arm64
           bash build-app.sh
-          lipo -verify_arch arm64 build/HafthiMac.app/Contents/MacOS/HafthiMac
+          lipo build/HafthiMac.app/Contents/MacOS/HafthiMac -verify_arch arm64
       - name: Sign and package app
         run: |
           codesign --force --deep --sign - build/HafthiMac.app
