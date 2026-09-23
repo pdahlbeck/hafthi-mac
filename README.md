@@ -1,4 +1,5 @@
 # Hafþi for Mac
+<img width="1672" height="941" alt="57007fb1-e88d-46fa-b954-6b6d58689367" src="https://github.com/user-attachments/assets/feafbd72-97e5-4503-80d3-8039c6f449ea" />
 
 A native macOS version of [Hafþi for Linux](https://github.com/pdahlbeck/hafthi), written in Swift and AppKit. [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) handles terminal emulation; Metal rendering is used when available, with a Core Graphics fallback.
 
