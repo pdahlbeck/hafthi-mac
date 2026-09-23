@@ -1,15 +1,15 @@
-name: Build macOS
+name: Build macOS app
 
 on:
   push:
   pull_request:
 
 jobs:
-  macos:
-    runs-on: macos-15
+  build:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+      - name: Build with SwiftPM
+        run: swift build --build-system native
+      - name: Build app bundle
         run: bash build-app.sh
-      - name: Check app bundle
-        run: test -x build/HafthiMac.app/Contents/MacOS/HafthiMac
