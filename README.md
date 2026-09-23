@@ -45,7 +45,7 @@ Enable **Command help** in Preferences. Install [tgpt](https://github.com/aandre
 
 ## Preferences and configuration
 
-Use **⌘ ,** for font, colors, opacity, padding, scrollback, image/GIF mode, Fish greeting, Starship and command help. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish greeting and automatic Starship startup take effect in new windows.
+Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Plugins** (Fish, Starship, tgpt). These optional tools are installed separately; this page groups their Hafþi settings. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish greeting and automatic Starship startup take effect in new windows.
 
 ## Build from source
 
