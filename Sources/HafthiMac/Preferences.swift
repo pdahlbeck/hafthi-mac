@@ -8,6 +8,7 @@ struct MacSettings: Codable {
     var scrollback = 15_000
     var backgroundMode = "off" // off, banner, full
     var imagePath = ""
+    var commandHelpEnabled = false
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -34,15 +35,18 @@ struct MacSettings: Codable {
 final class PreferencesWindow: NSWindowController {
     private var settings: MacSettings
     var onChange: ((MacSettings) -> Void)?
+    var onAsk: ((String) -> Void)?
+    var onInstall: (() -> Void)?
     private let fontValue = NSTextField(labelWithString: "")
     private let opacityValue = NSTextField(labelWithString: "")
     private let paddingValue = NSTextField(labelWithString: "")
     private let historyValue = NSTextField(labelWithString: "")
     private let imageName = NSTextField(labelWithString: "")
+    private let questionInput = NSTextField(string: "")
 
     init(settings: MacSettings) {
         self.settings = settings
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 410),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 540),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Hafþi Preferences"
         window.center()
@@ -98,6 +102,22 @@ final class PreferencesWindow: NSWindowController {
         imageName.stringValue = settings.imagePath.isEmpty ? "No image selected" : URL(fileURLWithPath: settings.imagePath).lastPathComponent
         imageName.lineBreakMode = .byTruncatingMiddle
         stack.addArrangedSubview(row("Image", choose, imageName))
+
+        let help = NSButton(checkboxWithTitle: "Enable optional command help", target: self,
+                            action: #selector(toggleHelp(_:)))
+        help.state = settings.commandHelpEnabled ? .on : .off
+        stack.addArrangedSubview(help)
+        questionInput.placeholderString = "Ask about a macOS terminal command"
+        questionInput.isEnabled = settings.commandHelpEnabled
+        questionInput.widthAnchor.constraint(equalToConstant: 390).isActive = true
+        stack.addArrangedSubview(questionInput)
+        let ask = NSButton(title: "Ask tgpt", target: self, action: #selector(askQuestion(_:)))
+        ask.isEnabled = settings.commandHelpEnabled
+        let install = NSButton(title: "Install tgpt…", target: self, action: #selector(installTgpt(_:)))
+        stack.addArrangedSubview(NSStackView(views: [ask, install]))
+        let privacy = NSTextField(wrappingLabelWithString: "Questions go to tgpt's online provider. Suggested commands are never run automatically.")
+        privacy.textColor = .secondaryLabelColor
+        stack.addArrangedSubview(privacy)
 
         let note = NSTextField(wrappingLabelWithString: "Changes are saved to ~/Library/Application Support/Hafthi/config.json")
         note.textColor = .secondaryLabelColor
@@ -159,4 +179,22 @@ final class PreferencesWindow: NSWindowController {
         refresh(settings)
         changed()
     }
+
+    func focusQuestion() {
+        window?.makeFirstResponder(questionInput)
+    }
+
+    @objc private func toggleHelp(_ sender: NSButton) {
+        settings.commandHelpEnabled = sender.state == .on
+        refresh(settings)
+        changed()
+    }
+
+    @objc private func askQuestion(_ sender: Any?) {
+        let question = String(questionInput.stringValue.prefix(200)).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard settings.commandHelpEnabled, !question.isEmpty else { return }
+        onAsk?(question)
+    }
+
+    @objc private func installTgpt(_ sender: Any?) { onInstall?() }
 }

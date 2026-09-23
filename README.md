@@ -21,6 +21,8 @@ This opens a window with Fish if installed, or your normal login shell otherwise
 
 Hafþi Mac supports ANSI colors, interactive full-screen applications, selection, scrollback, Command+N for a new window, Control+mouse wheel for font zoom, and a right-click menu. Preferences (Command+,) control font size, transparency, padding, scrollback, and an optional image or GIF background. Settings are saved in `~/Library/Application Support/Hafthi/config.json`.
 
+Optional command help can be enabled in Preferences. [tgpt](https://github.com/aandrew-me/tgpt) can be installed with `brew install tgpt`; questions are sent to its online provider, and suggested commands are never executed for you.
+
 ## Build an app
 
 ```sh
@@ -32,7 +34,7 @@ The locally built app is unsigned. For distributing it to other Macs, code signi
 
 ## Status
 
-This is a macOS port under development. The Linux GPU renderer, its custom preferences design, Wayland transparency, and optional tgpt command help are not yet ported. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
+This is a macOS port under development. The Linux GPU renderer's custom preferences design and Wayland transparency are not ported directly; the Mac version uses AppKit and optional Metal. The existing Linux version remains at [pdahlbeck/hafthi](https://github.com/pdahlbeck/hafthi).
 
 ## License
 

@@ -90,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     private var scrollMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.applicationIconImage = HafthiIcon.make()
         settings.save()
         installMenu()
         scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
@@ -162,6 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     private func settingsChanged(refreshPreferences: Bool = false) {
         settings.save()
         for window in windows.values { window.apply(settings) }
+        installMenu()
         if refreshPreferences { preferences?.refresh(settings) }
     }
 
@@ -183,10 +185,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 self?.settings = newSettings
                 self?.settingsChanged()
             }
+            controller.onAsk = { [weak self] question in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal,
+                              data: Array(CommandHelp.shellCommand(question: question).utf8)[...])
+            }
+            controller.onInstall = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal, data: Array("brew install tgpt".utf8)[...])
+            }
             preferences = controller
         }
         preferences?.showWindow(nil)
         preferences?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func askTgpt(_ sender: Any?) {
+        showPreferences(sender)
+        preferences?.focusQuestion()
     }
 
     @objc private func editConfig(_ sender: Any?) { NSWorkspace.shared.open(MacSettings.url) }
@@ -204,6 +220,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         let appMenu = NSMenu(title: "Hafþi")
         appMenu.addItem(item("New Window", action: #selector(openWindow(_:)), key: "n"))
         appMenu.addItem(item("Preferences…", action: #selector(showPreferences(_:)), key: ","))
+        if settings.commandHelpEnabled {
+            let ask = item("Ask tgpt…", action: #selector(askTgpt(_:)), key: "h")
+            ask.keyEquivalentModifierMask = [.control, .shift]
+            appMenu.addItem(ask)
+        }
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(item("Quit Hafþi", action: #selector(quit(_:)), key: "q"))
         bar.addItem(appItem)
@@ -236,6 +257,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         menu.addItem(item("Reset Font Size", action: #selector(resetFont(_:))))
         menu.addItem(item("Clear Scrollback", action: #selector(clearHistory(_:))))
         menu.addItem(NSMenuItem.separator())
+        if settings.commandHelpEnabled {
+            menu.addItem(item("Ask tgpt…", action: #selector(askTgpt(_:))))
+        }
         menu.addItem(item("Preferences…", action: #selector(showPreferences(_:))))
         menu.addItem(item("Edit Hafþi Config", action: #selector(editConfig(_:))))
         menu.addItem(NSMenuItem.separator())
@@ -244,6 +268,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     }
 }
 
+CommandHelp.handleIfRequested()
 let app = NSApplication.shared
 private let delegate = AppDelegate()
 app.delegate = delegate
