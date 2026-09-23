@@ -8,11 +8,52 @@ final class HafthiTerminalView: LocalProcessTerminalView {
     override func menu(for event: NSEvent) -> NSMenu? { owner?.contextMenu(for: self) }
 }
 
+// Keep the original NSImageView so animated GIFs continue to play while its
+// enclosing view crops the image to the available area without stretching it.
+final class CroppedImageView: NSView {
+    private let imageView = NSImageView()
+
+    var image: NSImage? {
+        didSet {
+            imageView.image = image
+            needsLayout = true
+        }
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.animates = true
+        addSubview(imageView)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+
+    override func layout() {
+        super.layout()
+        guard let image, image.size.width > 0, image.size.height > 0,
+              bounds.width > 0, bounds.height > 0 else { return }
+        let scale = max(bounds.width / image.size.width, bounds.height / image.size.height)
+        let width = image.size.width * scale
+        let height = image.size.height * scale
+        imageView.frame = NSRect(x: (bounds.width - width) / 2,
+                                 y: (bounds.height - height) / 2,
+                                 width: width, height: height)
+    }
+}
+
 final class TerminalWindow: NSWindow {
     let terminal: HafthiTerminalView
-    private let imageView = NSImageView()
+    private let imageView = CroppedImageView(frame: .zero)
     private var imageBottomConstraint: NSLayoutConstraint!
     private var imageHeightConstraint: NSLayoutConstraint!
+    private var imageTrailingConstraint: NSLayoutConstraint!
+    private var imageWidthConstraint: NSLayoutConstraint!
+    private var imageLeadingConstraint: NSLayoutConstraint!
+    private var imageTopConstraint: NSLayoutConstraint!
+    private var bannerMaxWidthConstraint: NSLayoutConstraint!
     private var edgeConstraints: [NSLayoutConstraint] = []
     private var topConstraint: NSLayoutConstraint!
     private var appliedScrollback = 0
@@ -35,15 +76,19 @@ final class TerminalWindow: NSWindow {
         guard let contentView else { return }
         contentView.wantsLayer = true
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.animates = true
         contentView.addSubview(imageView)
         imageBottomConstraint = imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
-        imageHeightConstraint = imageView.heightAnchor.constraint(equalToConstant: 150)
+        imageTrailingConstraint = imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+        imageHeightConstraint = imageView.heightAnchor.constraint(equalToConstant: 180)
+        imageWidthConstraint = imageView.widthAnchor.constraint(equalToConstant: 520)
+        imageWidthConstraint.priority = .defaultHigh
+        imageLeadingConstraint = imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor)
+        imageTopConstraint = imageView.topAnchor.constraint(equalTo: contentView.topAnchor)
+        bannerMaxWidthConstraint = imageView.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor)
         NSLayoutConstraint.activate([
-            imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            imageView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            imageLeadingConstraint,
+            imageTopConstraint,
+            imageTrailingConstraint,
             imageBottomConstraint
         ])
 
@@ -79,9 +124,6 @@ final class TerminalWindow: NSWindow {
         edgeConstraints[0].constant = pad
         edgeConstraints[1].constant = -pad
         edgeConstraints[2].constant = -pad
-        topConstraint.constant = pad + (settings.backgroundMode == "banner" ? 150 : 0)
-        imageBottomConstraint.isActive = settings.backgroundMode != "banner"
-        imageHeightConstraint.isActive = settings.backgroundMode == "banner"
         if appliedImageMode != settings.backgroundMode || appliedImagePath != settings.imagePath {
             if settings.backgroundMode != "off", !settings.imagePath.isEmpty,
                let image = NSImage(contentsOfFile: settings.imagePath) {
@@ -94,6 +136,19 @@ final class TerminalWindow: NSWindow {
             appliedImageMode = settings.backgroundMode
             appliedImagePath = settings.imagePath
         }
+        let banner = settings.backgroundMode == "banner" && imageView.image != nil
+        backgroundColor = banner
+            ? (NSColor(hafthiHex: settings.background) ?? .black).withAlphaComponent(CGFloat(settings.opacity))
+            : .clear
+        imageTrailingConstraint.isActive = !banner
+        imageBottomConstraint.isActive = !banner
+        imageWidthConstraint.isActive = banner
+        imageHeightConstraint.isActive = banner
+        bannerMaxWidthConstraint.isActive = banner
+        imageLeadingConstraint.constant = banner ? pad : 0
+        imageTopConstraint.constant = banner ? pad : 0
+        bannerMaxWidthConstraint.constant = -pad
+        topConstraint.constant = pad + (banner ? 180 + pad : 0)
     }
 }
 
