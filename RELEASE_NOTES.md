@@ -1,8 +1,8 @@
-Hafþi beta 10 for Apple Silicon Macs (macOS 13 or later).
+Hafþi beta 11 for Apple Silicon Macs (macOS 13 or later).
 
-- Download `Hafthi-0.1.0-beta.10-macOS-arm64.zip`, unzip it, and drag `Hafþi.app` to Applications. No Xcode or build tools are needed.
-- Fix the crash when opening Sampler in beta 9: Hafþi now loads the bundled dashboard configuration from the app's Resources directory.
-- If the bundled file is missing, show a useful error instead of terminating the app.
+- Download `Hafthi-0.1.0-beta.11-macOS-arm64.zip`, unzip it, and drag `Hafþi.app` to Applications. No Xcode or build tools are needed.
+- Fix the Sampler dashboard showing repeated `exec: "sh": executable file not found in $PATH` errors. Hafþi now passes a standard macOS command search path to Sampler.
+- Keep the beta 10 fix that loads the bundled dashboard configuration from the app's Resources directory.
 - Add an optional Sampler card with an on/off control, installation guidance and a GitHub link in Preferences → Plugins.
 - Install Sampler separately with `brew install sampler`. Enable it and open a dashboard in its own Hafþi window from Preferences or the app menu.
 - Bundle an example dashboard configuration. It is copied to `~/Library/Application Support/Hafthi/sampler.yml` on first use and remains editable across app updates. Restore it from Preferences after confirmation.

@@ -272,7 +272,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             let config = try SamplerSupport.ensureConfig()
             let terminal = makeTerminalWindow()
             terminal.window?.title = "Sampler — Hafþi"
+            // SwiftTerm's default child environment does not include PATH.
+            // Sampler uses it to find /bin/sh for each YAML sampling command.
+            var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
+            environment.append("PATH=\(SamplerSupport.executableSearchPath)")
             terminal.startProcess(executable: executable, args: ["-c", config.path],
+                                  environment: environment,
                                   currentDirectory: NSHomeDirectory())
         } catch {
             NSAlert(error: error).runModal()
