@@ -18,18 +18,8 @@ enum SamplerSupport {
         MacSettings.url.deletingLastPathComponent().appendingPathComponent("sampler.yml")
     }
 
-    static var executableSearchPath: String {
-        let standard = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin",
-                        "\(NSHomeDirectory())/go/bin", "\(NSHomeDirectory())/.local/bin",
-                        "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
-        let inherited = (ProcessInfo.processInfo.environment["PATH"] ?? "")
-            .split(separator: ":").map(String.init)
-        return (standard + inherited).joined(separator: ":")
-    }
-
     static var installedExecutable: String? {
-        executableSearchPath.split(separator: ":").map { "\($0)/sampler" }
-            .first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+        OptionalToolSupport.installedExecutable(named: "sampler")
     }
 
     @discardableResult

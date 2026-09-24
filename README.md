@@ -5,7 +5,7 @@ A native macOS version of [Hafþi for Linux](https://github.com/pdahlbeck/hafthi
 
 ## Download
 
-Download [Hafþi 0.1.0 beta 13 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.13). Unzip `Hafthi-0.1.0-beta.13-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
+Download [Hafþi 0.1.0 beta 14 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.14). Unzip `Hafthi-0.1.0-beta.14-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
@@ -20,6 +20,7 @@ The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macO
 | Shell and prompt | Automatically uses Fish when installed; otherwise uses your normal login shell. Fish's startup message is hidden by default in Hafþi. Starship can be enabled automatically for Fish when installed. |
 | Command help | Optional tgpt integration in Preferences and the right-click menu. The question goes to tgpt's online provider; suggested shell commands are displayed, not executed. |
 | Live dashboards | Optional Sampler integration opens a dedicated terminal window with a bundled example dashboard. Sampler itself is installed separately. |
+| File manager | Optional Yazi integration opens a dedicated terminal window to browse files. Yazi is installed separately. |
 
 ### Shortcuts
 
@@ -50,9 +51,13 @@ Install [Sampler](https://github.com/sqshq/sampler) yourself with `brew install 
 
 The first launch copies the included example dashboard to `~/Library/Application Support/Hafthi/sampler.yml`. **Edit dashboard config…** opens that file. Your edits survive app updates; **Restore default…** resets it only after confirmation. The example periodically runs local commands for CPU, memory, uptime and time, and checks GitHub response time. Review the YAML before running it, especially if you change its commands or destinations. The GitHub response alert uses `bc`; install it separately if you want that alert.
 
+### Optional Yazi file manager
+
+Install [Yazi](https://github.com/sxyazi/yazi) yourself with `brew install yazi`. Open **Preferences → Plugins → Yazi**, enable it, and click **Open Yazi**. It starts in your home directory in a dedicated Hafþi window. The app menu and right-click menu also offer **Open Yazi…** while enabled. **Install Yazi…** types the Homebrew command into your current terminal without running it. Image previews may be limited because Hafþi does not currently advertise a Yazi-supported image protocol. Yazi and its optional preview tools are not bundled with Hafþi.
+
 ## Preferences and configuration
 
-Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Plugins**. The Fish, Starship, tgpt and Sampler cards each have an on/off switch; click a card to open its detailed settings, installation instructions, and GitHub repository link. These optional tools are installed separately via Homebrew. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish and Starship startup settings take effect in new windows.
+Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Plugins**. The Fish, Starship, tgpt, Sampler and Yazi cards each have an on/off switch; click a card to open its detailed settings, installation instructions, and GitHub repository link. These optional tools are installed separately via Homebrew. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish and Starship startup settings take effect in new windows.
 
 ## Build from source
 
