@@ -304,6 +304,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                               currentDirectory: NSHomeDirectory())
     }
 
+    @objc private func openMicro(_ sender: Any?) {
+        guard settings.useMicro == true else { return }
+        guard let executable = MicroSupport.installedExecutable else {
+            let alert = NSAlert()
+            alert.messageText = "Micro is not installed"
+            alert.informativeText = "Install it yourself with brew install micro, then try again."
+            alert.runModal()
+            return
+        }
+        let terminal = makeTerminalWindow()
+        terminal.window?.title = "Micro — Hafþi"
+        var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
+        environment.append("PATH=\(OptionalToolSupport.executableSearchPath)")
+        terminal.startProcess(executable: executable, environment: environment,
+                              currentDirectory: NSHomeDirectory())
+    }
+
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? TerminalWindow else { return }
         // A manually closed window must not receive a later process-exit callback.
@@ -387,6 +404,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 guard let terminal = self?.activeTerminal else { return }
                 terminal.send(source: terminal, data: Array("brew install yazi".utf8)[...])
             }
+            controller.onOpenMicro = { [weak self] in self?.openMicro(nil) }
+            controller.onInstallMicro = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal, data: Array("brew install micro".utf8)[...])
+            }
             preferences = controller
         }
         preferences?.showWindow(nil)
@@ -423,6 +445,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         }
         if settings.useYazi == true {
             appMenu.addItem(item("Open Yazi…", action: #selector(openYazi(_:))))
+        }
+        if settings.useMicro == true {
+            appMenu.addItem(item("Open Micro…", action: #selector(openMicro(_:))))
         }
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(item("Quit Hafþi", action: #selector(quit(_:)), key: "q"))
@@ -464,6 +489,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         }
         if settings.useYazi == true {
             menu.addItem(item("Open Yazi…", action: #selector(openYazi(_:))))
+        }
+        if settings.useMicro == true {
+            menu.addItem(item("Open Micro…", action: #selector(openMicro(_:))))
         }
         menu.addItem(item("Preferences…", action: #selector(showPreferences(_:))))
         menu.addItem(item("Edit Hafþi Config", action: #selector(editConfig(_:))))

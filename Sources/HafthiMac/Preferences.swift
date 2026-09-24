@@ -19,6 +19,7 @@ struct MacSettings: Codable {
     var useStarship: Bool? = nil
     var useSampler: Bool? = nil
     var useYazi: Bool? = nil
+    var useMicro: Bool? = nil
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -73,7 +74,7 @@ final class PreferencesWindow: NSWindowController {
     }
 
     private enum Plugin: Int, CaseIterable {
-        case fish, starship, tgpt, sampler, yazi
+        case fish, starship, tgpt, sampler, yazi, micro
 
         var title: String {
             switch self {
@@ -82,6 +83,7 @@ final class PreferencesWindow: NSWindowController {
             case .tgpt: return "tgpt"
             case .sampler: return "Sampler"
             case .yazi: return "Yazi"
+            case .micro: return "Micro"
             }
         }
 
@@ -92,6 +94,7 @@ final class PreferencesWindow: NSWindowController {
             case .tgpt: return "questionmark.bubble"
             case .sampler: return "chart.xyaxis.line"
             case .yazi: return "folder"
+            case .micro: return "square.and.pencil"
             }
         }
 
@@ -102,6 +105,7 @@ final class PreferencesWindow: NSWindowController {
             case .tgpt: return "Command help · questions and installation"
             case .sampler: return "Dashboard · live command charts"
             case .yazi: return "Files · terminal file manager"
+            case .micro: return "Editor · simple text editing"
             }
         }
 
@@ -112,6 +116,7 @@ final class PreferencesWindow: NSWindowController {
             case .tgpt: return "https://github.com/aandrew-me/tgpt"
             case .sampler: return "https://github.com/sqshq/sampler"
             case .yazi: return "https://github.com/sxyazi/yazi"
+            case .micro: return "https://github.com/micro-editor/micro"
             }
         }
     }
@@ -126,6 +131,8 @@ final class PreferencesWindow: NSWindowController {
     var onInstallSampler: (() -> Void)?
     var onOpenYazi: (() -> Void)?
     var onInstallYazi: (() -> Void)?
+    var onOpenMicro: (() -> Void)?
+    var onInstallMicro: (() -> Void)?
     private let fontValue = NSTextField(labelWithString: "")
     private let opacityValue = NSTextField(labelWithString: "")
     private let paddingValue = NSTextField(labelWithString: "")
@@ -260,6 +267,7 @@ final class PreferencesWindow: NSWindowController {
         case .tgpt: settings.commandHelpEnabled = enabled
         case .sampler: settings.useSampler = enabled
         case .yazi: settings.useYazi = enabled
+        case .micro: settings.useMicro = enabled
         }
         refresh(settings)
         changed()
@@ -311,7 +319,7 @@ final class PreferencesWindow: NSWindowController {
 
     private func buildPlugins(in stack: NSStackView) {
         guard let selectedPlugin else {
-            let description = detail("Optional tools for your shell, prompt, command help, dashboards, and files. Install each tool yourself with Homebrew; their settings and GitHub links are in the cards below.")
+            let description = detail("Optional tools for your shell, prompt, command help, dashboards, files, and editing. Install each tool yourself with Homebrew; their settings and GitHub links are in the cards below.")
             stack.addArrangedSubview(description)
             stack.setCustomSpacing(18, after: description)
             for plugin in Plugin.allCases {
@@ -326,6 +334,7 @@ final class PreferencesWindow: NSWindowController {
         case .tgpt: buildTgptSettings(in: stack)
         case .sampler: buildSamplerSettings(in: stack)
         case .yazi: buildYaziSettings(in: stack)
+        case .micro: buildMicroSettings(in: stack)
         }
     }
 
@@ -410,6 +419,7 @@ final class PreferencesWindow: NSWindowController {
         case .tgpt: return settings.commandHelpEnabled
         case .sampler: return settings.useSampler == true
         case .yazi: return settings.useYazi == true
+        case .micro: return settings.useMicro == true
         }
     }
 
@@ -488,6 +498,22 @@ final class PreferencesWindow: NSWindowController {
         stack.addArrangedSubview(NSStackView(views: [open, install]))
         stack.addArrangedSubview(detail("Image previews may be limited: Hafþi does not currently advertise a Yazi-supported image protocol."))
         stack.addArrangedSubview(pluginLink(.yazi))
+    }
+
+    private func buildMicroSettings(in stack: NSStackView) {
+        stack.addArrangedSubview(detail("Edit text in a dedicated Hafþi window. Install Micro yourself with brew install micro."))
+        let enabled = NSButton(checkboxWithTitle: "Enable Micro editor", target: self,
+                               action: #selector(toggleMicro(_:)))
+        enabled.state = settings.useMicro == true ? .on : .off
+        stack.addArrangedSubview(enabled)
+        stack.addArrangedSubview(detail(MicroSupport.installedExecutable == nil
+            ? "Micro is not installed yet." : "Micro is installed and ready."))
+        let open = NSButton(title: "Open Micro", target: self, action: #selector(openMicro(_:)))
+        open.isEnabled = settings.useMicro == true
+        let install = NSButton(title: "Install Micro…", target: self, action: #selector(installMicro(_:)))
+        stack.addArrangedSubview(NSStackView(views: [open, install]))
+        stack.addArrangedSubview(detail("Use Ctrl+S to save and Ctrl+Q to exit. Your default editor is unchanged."))
+        stack.addArrangedSubview(pluginLink(.micro))
     }
 
     private func pluginLink(_ plugin: Plugin) -> NSButton {
@@ -637,6 +663,15 @@ final class PreferencesWindow: NSWindowController {
 
     @objc private func openYazi(_ sender: Any?) { onOpenYazi?() }
     @objc private func installYazi(_ sender: Any?) { onInstallYazi?() }
+
+    @objc private func toggleMicro(_ sender: NSButton) {
+        settings.useMicro = sender.state == .on
+        refresh(settings)
+        changed()
+    }
+
+    @objc private func openMicro(_ sender: Any?) { onOpenMicro?() }
+    @objc private func installMicro(_ sender: Any?) { onInstallMicro?() }
 
     @objc private func editSamplerConfig(_ sender: Any?) {
         do {

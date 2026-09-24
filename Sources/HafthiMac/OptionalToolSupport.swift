@@ -21,3 +21,9 @@ enum YaziSupport {
         OptionalToolSupport.installedExecutable(named: "yazi")
     }
 }
+
+enum MicroSupport {
+    static var installedExecutable: String? {
+        OptionalToolSupport.installedExecutable(named: "micro")
+    }
+}
