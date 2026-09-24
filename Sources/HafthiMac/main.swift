@@ -221,7 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             .replacingOccurrences(of: "'", with: "\\'") + "'"
     }
 
-    @objc func openWindow(_ sender: Any?) {
+    private func makeTerminalWindow() -> HafthiTerminalView {
         let window = TerminalWindow(settings: settings, owner: self)
         window.delegate = self
         windows[ObjectIdentifier(window)] = window
@@ -234,6 +234,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(terminal)
         NSApp.activate(ignoringOtherApps: true)
+        return terminal
+    }
+
+    @objc func openWindow(_ sender: Any?) {
+        let terminal = makeTerminalWindow()
         let shell = Self.preferredShell(useFish: settings.useFish != false)
         var args = ["-l"]
         if URL(fileURLWithPath: shell).lastPathComponent == "fish" {
@@ -252,6 +257,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         }
         terminal.startProcess(executable: shell, args: args,
                               currentDirectory: NSHomeDirectory())
+    }
+
+    @objc private func openSampler(_ sender: Any?) {
+        guard settings.useSampler == true else { return }
+        guard let executable = SamplerSupport.installedExecutable else {
+            let alert = NSAlert()
+            alert.messageText = "Sampler is not installed"
+            alert.informativeText = "Install it yourself with brew install sampler, then try again."
+            alert.runModal()
+            return
+        }
+        do {
+            let config = try SamplerSupport.ensureConfig()
+            let terminal = makeTerminalWindow()
+            terminal.window?.title = "Sampler — Hafþi"
+            terminal.startProcess(executable: executable, args: ["-c", config.path],
+                                  currentDirectory: NSHomeDirectory())
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -318,6 +343,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 guard let terminal = self?.activeTerminal else { return }
                 terminal.send(source: terminal, data: Array("brew install tgpt".utf8)[...])
             }
+            controller.onOpenSampler = { [weak self] in self?.openSampler(nil) }
+            controller.onInstallSampler = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal, data: Array("brew install sampler".utf8)[...])
+            }
             preferences = controller
         }
         preferences?.showWindow(nil)
@@ -348,6 +378,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             let ask = item("Ask tgpt…", action: #selector(askTgpt(_:)), key: "h")
             ask.keyEquivalentModifierMask = [.control, .shift]
             appMenu.addItem(ask)
+        }
+        if settings.useSampler == true {
+            appMenu.addItem(item("Open Sampler…", action: #selector(openSampler(_:))))
         }
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(item("Quit Hafþi", action: #selector(quit(_:)), key: "q"))
@@ -383,6 +416,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         menu.addItem(NSMenuItem.separator())
         if settings.commandHelpEnabled {
             menu.addItem(item("Ask tgpt…", action: #selector(askTgpt(_:))))
+        }
+        if settings.useSampler == true {
+            menu.addItem(item("Open Sampler…", action: #selector(openSampler(_:))))
         }
         menu.addItem(item("Preferences…", action: #selector(showPreferences(_:))))
         menu.addItem(item("Edit Hafþi Config", action: #selector(editConfig(_:))))

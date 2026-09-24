@@ -13,3 +13,5 @@ jobs:
         run: swift build --build-system native
       - name: Build app bundle
         run: bash build-app.sh
+      - name: Verify bundled Sampler dashboard
+        run: test -f 'build/Hafþi.app/Contents/Resources/HafthiMac_HafthiMac.bundle/Resources/SamplerDefault.yml' || test -f 'build/Hafþi.app/Contents/Resources/HafthiMac_HafthiMac.bundle/SamplerDefault.yml'

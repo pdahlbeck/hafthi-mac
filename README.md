@@ -5,7 +5,7 @@ A native macOS version of [Hafþi for Linux](https://github.com/pdahlbeck/hafthi
 
 ## Download
 
-Download [Hafþi 0.1.0 beta 8 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.8). Unzip `Hafthi-0.1.0-beta.8-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
+Download [Hafþi 0.1.0 beta 9 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.9). Unzip `Hafthi-0.1.0-beta.9-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
@@ -19,6 +19,7 @@ The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macO
 | Images | Optional PNG, JPEG, WebP or animated GIF background, with **Off**, **Banner** and **Full image** modes. Banner keeps the image above the terminal text; Full image fills the window behind it. |
 | Shell and prompt | Automatically uses Fish when installed; otherwise uses your normal login shell. Fish's startup message is hidden by default in Hafþi. Starship can be enabled automatically for Fish when installed. |
 | Command help | Optional tgpt integration in Preferences and the right-click menu. The question goes to tgpt's online provider; suggested shell commands are displayed, not executed. |
+| Live dashboards | Optional Sampler integration opens a dedicated terminal window with a bundled example dashboard. Sampler itself is installed separately. |
 
 ### Shortcuts
 
@@ -43,9 +44,15 @@ Install [Starship](https://starship.rs/) separately with `brew install starship`
 
 Enable **Command help** in Preferences. Install [tgpt](https://github.com/aandrew-me/tgpt) separately with `brew install tgpt`, or click **Install tgpt…** to place that command at the terminal prompt and press Enter yourself. Type a macOS terminal question in Preferences and click **Ask tgpt**, or open the question field from the right-click menu. The answer appears in the terminal. Questions are sent to tgpt's online provider; Hafþi does not automatically run suggested commands.
 
+### Optional Sampler dashboard
+
+Install [Sampler](https://github.com/sqshq/sampler) yourself with `brew install sampler`. Open **Preferences → Plugins → Sampler**, enable it, and click **Open Sampler**. It opens in its own Hafþi window; the app menu and right-click menu also offer **Open Sampler…** while enabled. **Install Sampler…** types the Homebrew command into your current terminal without running it.
+
+The first launch copies the included example dashboard to `~/Library/Application Support/Hafthi/sampler.yml`. **Edit dashboard config…** opens that file. Your edits survive app updates; **Restore default…** resets it only after confirmation. The example periodically runs local commands for CPU, memory, uptime and time, and checks GitHub response time. Review the YAML before running it, especially if you change its commands or destinations. The GitHub response alert uses `bc`; install it separately if you want that alert.
+
 ## Preferences and configuration
 
-Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Plugins**. The Fish, Starship, and tgpt cards each have an on/off switch; click a card to open its detailed settings, installation instructions, and GitHub repository link. These optional tools are installed separately via Homebrew. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish and Starship startup settings take effect in new windows.
+Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Plugins**. The Fish, Starship, tgpt and Sampler cards each have an on/off switch; click a card to open its detailed settings, installation instructions, and GitHub repository link. These optional tools are installed separately via Homebrew. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish and Starship startup settings take effect in new windows.
 
 ## Build from source
 

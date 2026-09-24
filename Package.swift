@@ -6,5 +6,6 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [.executable(name: "HafthiMac", targets: ["HafthiMac"])],
     dependencies: [.package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.19.0")],
-    targets: [.executableTarget(name: "HafthiMac", dependencies: [.product(name: "SwiftTerm", package: "SwiftTerm")])]
+    targets: [.executableTarget(name: "HafthiMac", dependencies: [.product(name: "SwiftTerm", package: "SwiftTerm")],
+                                resources: [.copy("Resources/SamplerDefault.yml")])]
 )
