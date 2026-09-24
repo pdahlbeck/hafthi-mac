@@ -1,0 +1,68 @@
+theme: dark
+
+variables:
+  github_url: https://github.com
+
+sparklines:
+  - title: Total CPU Usage (%)
+    rate-ms: 1000
+    scale: 0
+    sample: ps -A -o %cpu | awk '{s+=$1} END {print s}'
+
+barcharts:
+  - title: Top 3 Memory Consuming Processes
+    rate-ms: 2000
+    scale: 0
+    items:
+      - label: Process 1
+        sample: ps -eo pmem,comm | sort -k 1 -nr | head -1 | awk '{print $1}'
+      - label: Process 2
+        sample: ps -eo pmem,comm | sort -k 1 -nr | head -2 | tail -1 | awk '{print $1}'
+      - label: Process 3
+        sample: ps -eo pmem,comm | sort -k 1 -nr | head -3 | tail -1 | awk '{print $1}'
+
+runcharts:
+  - title: Github Response Time (seconds)
+    rate-ms: 500
+    scale: 2
+    legend:
+      enabled: true
+    items:
+      - label: GITHUB
+        sample: curl -o /dev/null -s -w '%{time_total}' $github_url
+        color: 178
+    triggers:
+      - title: High Response Time
+        condition: echo "$prev < 0.5 && $cur > 0.5" | bc -l
+        actions:
+          terminal-bell: true
+          sound: true
+          visual: true
+
+gauges:
+  - title: Random Value (0-100)
+    rate-ms: 1000
+    scale: 0
+    percent-only: false
+    color: 208
+    cur:
+      sample: echo $(( $RANDOM % 100 ))
+    max:
+      sample: echo 100
+    min:
+      sample: echo 0
+
+textboxes:
+  - title: System Uptime
+    rate-ms: 5000
+    border: true
+    color: 43
+    sample: uptime
+
+asciiboxes:
+  - title: Current Time
+    rate-ms: 1000
+    font: 3d
+    border: false
+    color: 43
+    sample: date +%T

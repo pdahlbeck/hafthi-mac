@@ -17,6 +17,7 @@ struct MacSettings: Codable {
     var useFish: Bool? = nil
     var showFishGreeting: Bool? = nil
     var useStarship: Bool? = nil
+    var useSampler: Bool? = nil
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -71,13 +72,14 @@ final class PreferencesWindow: NSWindowController {
     }
 
     private enum Plugin: Int, CaseIterable {
-        case fish, starship, tgpt
+        case fish, starship, tgpt, sampler
 
         var title: String {
             switch self {
             case .fish: return "Fish"
             case .starship: return "Starship"
             case .tgpt: return "tgpt"
+            case .sampler: return "Sampler"
             }
         }
 
@@ -86,6 +88,7 @@ final class PreferencesWindow: NSWindowController {
             case .fish: return "terminal"
             case .starship: return "sparkles"
             case .tgpt: return "questionmark.bubble"
+            case .sampler: return "chart.xyaxis.line"
             }
         }
 
@@ -94,6 +97,7 @@ final class PreferencesWindow: NSWindowController {
             case .fish: return "Shell · greeting and startup"
             case .starship: return "Prompt · Fish integration"
             case .tgpt: return "Command help · questions and installation"
+            case .sampler: return "Dashboard · live command charts"
             }
         }
 
@@ -102,6 +106,7 @@ final class PreferencesWindow: NSWindowController {
             case .fish: return "https://github.com/fish-shell/fish-shell"
             case .starship: return "https://github.com/starship/starship"
             case .tgpt: return "https://github.com/aandrew-me/tgpt"
+            case .sampler: return "https://github.com/sqshq/sampler"
             }
         }
     }
@@ -112,6 +117,8 @@ final class PreferencesWindow: NSWindowController {
     var onChange: ((MacSettings) -> Void)?
     var onAsk: ((String) -> Void)?
     var onInstall: (() -> Void)?
+    var onOpenSampler: (() -> Void)?
+    var onInstallSampler: (() -> Void)?
     private let fontValue = NSTextField(labelWithString: "")
     private let opacityValue = NSTextField(labelWithString: "")
     private let paddingValue = NSTextField(labelWithString: "")
@@ -122,7 +129,7 @@ final class PreferencesWindow: NSWindowController {
 
     init(settings: MacSettings) {
         self.settings = settings
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 530),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Hafþi · Preferences"
         window.appearance = NSAppearance(named: .darkAqua)
@@ -244,6 +251,7 @@ final class PreferencesWindow: NSWindowController {
         case .fish: settings.useFish = enabled
         case .starship: settings.useStarship = enabled
         case .tgpt: settings.commandHelpEnabled = enabled
+        case .sampler: settings.useSampler = enabled
         }
         refresh(settings)
         changed()
@@ -295,7 +303,7 @@ final class PreferencesWindow: NSWindowController {
 
     private func buildPlugins(in stack: NSStackView) {
         guard let selectedPlugin else {
-            let description = detail("Optional tools for your shell, prompt, and command help. Install them yourself with Homebrew: brew install fish, brew install starship, or brew install tgpt.")
+            let description = detail("Optional tools for your shell, prompt, command help, and live dashboards. Install each tool yourself with Homebrew; their settings and GitHub links are in the cards below.")
             stack.addArrangedSubview(description)
             stack.setCustomSpacing(18, after: description)
             for plugin in Plugin.allCases {
@@ -308,6 +316,7 @@ final class PreferencesWindow: NSWindowController {
         case .fish: buildFishSettings(in: stack)
         case .starship: buildStarshipSettings(in: stack)
         case .tgpt: buildTgptSettings(in: stack)
+        case .sampler: buildSamplerSettings(in: stack)
         }
     }
 
@@ -390,6 +399,7 @@ final class PreferencesWindow: NSWindowController {
         case .fish: return settings.useFish != false
         case .starship: return settings.useStarship != false
         case .tgpt: return settings.commandHelpEnabled
+        case .sampler: return settings.useSampler == true
         }
     }
 
@@ -432,6 +442,26 @@ final class PreferencesWindow: NSWindowController {
         stack.addArrangedSubview(NSStackView(views: [ask, install]))
         stack.addArrangedSubview(detail("Questions go to tgpt's online provider. Suggested commands are never run automatically."))
         stack.addArrangedSubview(pluginLink(.tgpt))
+    }
+
+    private func buildSamplerSettings(in stack: NSStackView) {
+        stack.addArrangedSubview(detail("Visualize live shell commands in a dedicated Hafþi window. Install Sampler yourself with brew install sampler."))
+        let enabled = NSButton(checkboxWithTitle: "Enable Sampler dashboard", target: self,
+                               action: #selector(toggleSampler(_:)))
+        enabled.state = settings.useSampler == true ? .on : .off
+        stack.addArrangedSubview(enabled)
+        stack.addArrangedSubview(detail(SamplerSupport.installedExecutable == nil
+            ? "Sampler is not installed yet." : "Sampler is installed and ready."))
+        stack.addArrangedSubview(detail("Your default dashboard config is copied to ~/Library/Application Support/Hafthi/sampler.yml the first time it is opened. Changes to that file are kept."))
+        let open = NSButton(title: "Open Sampler", target: self, action: #selector(openSampler(_:)))
+        open.isEnabled = settings.useSampler == true
+        let install = NSButton(title: "Install Sampler…", target: self, action: #selector(installSampler(_:)))
+        stack.addArrangedSubview(NSStackView(views: [open, install]))
+        let edit = NSButton(title: "Edit dashboard config…", target: self, action: #selector(editSamplerConfig(_:)))
+        let restore = NSButton(title: "Restore default…", target: self, action: #selector(restoreSamplerConfig(_:)))
+        stack.addArrangedSubview(NSStackView(views: [edit, restore]))
+        stack.addArrangedSubview(detail("The config runs shell commands repeatedly and checks GitHub. Review it before running Sampler."))
+        stack.addArrangedSubview(pluginLink(.sampler))
     }
 
     private func pluginLink(_ plugin: Plugin) -> NSButton {
@@ -562,6 +592,42 @@ final class PreferencesWindow: NSWindowController {
     @objc private func toggleStarship(_ sender: NSButton) {
         settings.useStarship = sender.state == .on
         changed()
+    }
+
+    @objc private func toggleSampler(_ sender: NSButton) {
+        settings.useSampler = sender.state == .on
+        refresh(settings)
+        changed()
+    }
+
+    @objc private func openSampler(_ sender: Any?) { onOpenSampler?() }
+    @objc private func installSampler(_ sender: Any?) { onInstallSampler?() }
+
+    @objc private func editSamplerConfig(_ sender: Any?) {
+        do {
+            NSWorkspace.shared.open(try SamplerSupport.ensureConfig())
+        } catch {
+            showSamplerError(error)
+        }
+    }
+
+    @objc private func restoreSamplerConfig(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "Restore the default Sampler dashboard?"
+        alert.informativeText = "This replaces your edits to sampler.yml."
+        alert.addButton(withTitle: "Restore")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            try SamplerSupport.restoreDefault()
+        } catch {
+            showSamplerError(error)
+        }
+    }
+
+    private func showSamplerError(_ error: Error) {
+        let alert = NSAlert(error: error)
+        alert.runModal()
     }
 
     @objc private func askQuestion(_ sender: Any?) {
