@@ -69,6 +69,9 @@ final class TerminalWindow: NSWindow {
         super.init(contentRect: frame,
                    styleMask: [.titled, .closable, .miniaturizable, .resizable],
                    backing: .buffered, defer: false)
+        // ARC owns this window through AppDelegate.windows. AppKit's default
+        // release-on-close would also release it at the end of the event.
+        isReleasedWhenClosed = false
         title = "Hafþi"
         center()
         isOpaque = false
