@@ -1,8 +1,8 @@
-Hafþi beta 12 for Apple Silicon Macs (macOS 13 or later).
+Hafþi beta 13 for Apple Silicon Macs (macOS 13 or later).
 
-- Download `Hafthi-0.1.0-beta.12-macOS-arm64.zip`, unzip it, and drag `Hafþi.app` to Applications. No Xcode or build tools are needed.
-- Delay closing a terminal window until SwiftTerm's process-exit callback has returned, avoiding teardown during its cleanup when Sampler quits.
-- Disconnect callbacks when a window is manually closed so a later process-exit notification cannot close it again.
+- Download `Hafthi-0.1.0-beta.13-macOS-arm64.zip`, unzip it, and drag `Hafþi.app` to Applications. No Xcode or build tools are needed.
+- Keep terminal windows owned by Swift ARC through close; AppKit must not release them a second time when Sampler exits or a window is closed.
+- Retain the deferred process-exit close and callback cleanup from beta 12.
 - Keep the beta 11 fix that passes a standard macOS command search path to Sampler.
 - Keep the beta 10 fix that loads the bundled dashboard configuration from the app's Resources directory.
 - Add an optional Sampler card with an on/off control, installation guidance and a GitHub link in Preferences → Plugins.
