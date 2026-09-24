@@ -286,7 +286,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
 
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? TerminalWindow else { return }
-        window.terminal.terminate()
+        // A manually closed window must not receive a later process-exit callback.
+        window.terminal.processDelegate = nil
+        if window.terminal.process.running {
+            window.terminal.terminate()
+        }
         windows.removeValue(forKey: ObjectIdentifier(window))
     }
 
@@ -295,7 +299,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     }
 
     func processTerminated(source: SwiftTerm.TerminalView, exitCode: Int32?) {
-        source.window?.close()
+        guard let window = source.window as? TerminalWindow else { return }
+        // LocalProcess calls this delegate before childStopped(). Closing here
+        // tears down the terminal while SwiftTerm is still on its callback stack.
+        DispatchQueue.main.async { [weak window] in
+            window?.close()
+        }
     }
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
