@@ -18,6 +18,7 @@ struct MacSettings: Codable {
     var showFishGreeting: Bool? = nil
     var useStarship: Bool? = nil
     var useSampler: Bool? = nil
+    var useYazi: Bool? = nil
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -72,7 +73,7 @@ final class PreferencesWindow: NSWindowController {
     }
 
     private enum Plugin: Int, CaseIterable {
-        case fish, starship, tgpt, sampler
+        case fish, starship, tgpt, sampler, yazi
 
         var title: String {
             switch self {
@@ -80,6 +81,7 @@ final class PreferencesWindow: NSWindowController {
             case .starship: return "Starship"
             case .tgpt: return "tgpt"
             case .sampler: return "Sampler"
+            case .yazi: return "Yazi"
             }
         }
 
@@ -89,6 +91,7 @@ final class PreferencesWindow: NSWindowController {
             case .starship: return "sparkles"
             case .tgpt: return "questionmark.bubble"
             case .sampler: return "chart.xyaxis.line"
+            case .yazi: return "folder"
             }
         }
 
@@ -98,6 +101,7 @@ final class PreferencesWindow: NSWindowController {
             case .starship: return "Prompt · Fish integration"
             case .tgpt: return "Command help · questions and installation"
             case .sampler: return "Dashboard · live command charts"
+            case .yazi: return "Files · terminal file manager"
             }
         }
 
@@ -107,6 +111,7 @@ final class PreferencesWindow: NSWindowController {
             case .starship: return "https://github.com/starship/starship"
             case .tgpt: return "https://github.com/aandrew-me/tgpt"
             case .sampler: return "https://github.com/sqshq/sampler"
+            case .yazi: return "https://github.com/sxyazi/yazi"
             }
         }
     }
@@ -119,6 +124,8 @@ final class PreferencesWindow: NSWindowController {
     var onInstall: (() -> Void)?
     var onOpenSampler: (() -> Void)?
     var onInstallSampler: (() -> Void)?
+    var onOpenYazi: (() -> Void)?
+    var onInstallYazi: (() -> Void)?
     private let fontValue = NSTextField(labelWithString: "")
     private let opacityValue = NSTextField(labelWithString: "")
     private let paddingValue = NSTextField(labelWithString: "")
@@ -129,7 +136,7 @@ final class PreferencesWindow: NSWindowController {
 
     init(settings: MacSettings) {
         self.settings = settings
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 700),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Hafþi · Preferences"
         window.appearance = NSAppearance(named: .darkAqua)
@@ -252,6 +259,7 @@ final class PreferencesWindow: NSWindowController {
         case .starship: settings.useStarship = enabled
         case .tgpt: settings.commandHelpEnabled = enabled
         case .sampler: settings.useSampler = enabled
+        case .yazi: settings.useYazi = enabled
         }
         refresh(settings)
         changed()
@@ -303,7 +311,7 @@ final class PreferencesWindow: NSWindowController {
 
     private func buildPlugins(in stack: NSStackView) {
         guard let selectedPlugin else {
-            let description = detail("Optional tools for your shell, prompt, command help, and live dashboards. Install each tool yourself with Homebrew; their settings and GitHub links are in the cards below.")
+            let description = detail("Optional tools for your shell, prompt, command help, dashboards, and files. Install each tool yourself with Homebrew; their settings and GitHub links are in the cards below.")
             stack.addArrangedSubview(description)
             stack.setCustomSpacing(18, after: description)
             for plugin in Plugin.allCases {
@@ -317,6 +325,7 @@ final class PreferencesWindow: NSWindowController {
         case .starship: buildStarshipSettings(in: stack)
         case .tgpt: buildTgptSettings(in: stack)
         case .sampler: buildSamplerSettings(in: stack)
+        case .yazi: buildYaziSettings(in: stack)
         }
     }
 
@@ -400,6 +409,7 @@ final class PreferencesWindow: NSWindowController {
         case .starship: return settings.useStarship != false
         case .tgpt: return settings.commandHelpEnabled
         case .sampler: return settings.useSampler == true
+        case .yazi: return settings.useYazi == true
         }
     }
 
@@ -462,6 +472,22 @@ final class PreferencesWindow: NSWindowController {
         stack.addArrangedSubview(NSStackView(views: [edit, restore]))
         stack.addArrangedSubview(detail("The config runs shell commands repeatedly and checks GitHub. Review it before running Sampler."))
         stack.addArrangedSubview(pluginLink(.sampler))
+    }
+
+    private func buildYaziSettings(in stack: NSStackView) {
+        stack.addArrangedSubview(detail("Browse files in a dedicated Hafþi window. Install Yazi yourself with brew install yazi."))
+        let enabled = NSButton(checkboxWithTitle: "Enable Yazi file manager", target: self,
+                               action: #selector(toggleYazi(_:)))
+        enabled.state = settings.useYazi == true ? .on : .off
+        stack.addArrangedSubview(enabled)
+        stack.addArrangedSubview(detail(YaziSupport.installedExecutable == nil
+            ? "Yazi is not installed yet." : "Yazi is installed and ready."))
+        let open = NSButton(title: "Open Yazi", target: self, action: #selector(openYazi(_:)))
+        open.isEnabled = settings.useYazi == true
+        let install = NSButton(title: "Install Yazi…", target: self, action: #selector(installYazi(_:)))
+        stack.addArrangedSubview(NSStackView(views: [open, install]))
+        stack.addArrangedSubview(detail("Image previews may be limited: Hafþi does not currently advertise a Yazi-supported image protocol."))
+        stack.addArrangedSubview(pluginLink(.yazi))
     }
 
     private func pluginLink(_ plugin: Plugin) -> NSButton {
@@ -602,6 +628,15 @@ final class PreferencesWindow: NSWindowController {
 
     @objc private func openSampler(_ sender: Any?) { onOpenSampler?() }
     @objc private func installSampler(_ sender: Any?) { onInstallSampler?() }
+
+    @objc private func toggleYazi(_ sender: NSButton) {
+        settings.useYazi = sender.state == .on
+        refresh(settings)
+        changed()
+    }
+
+    @objc private func openYazi(_ sender: Any?) { onOpenYazi?() }
+    @objc private func installYazi(_ sender: Any?) { onInstallYazi?() }
 
     @objc private func editSamplerConfig(_ sender: Any?) {
         do {

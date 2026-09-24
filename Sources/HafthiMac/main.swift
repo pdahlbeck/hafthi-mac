@@ -278,13 +278,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             // SwiftTerm's default child environment does not include PATH.
             // Sampler uses it to find /bin/sh for each YAML sampling command.
             var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
-            environment.append("PATH=\(SamplerSupport.executableSearchPath)")
+            environment.append("PATH=\(OptionalToolSupport.executableSearchPath)")
             terminal.startProcess(executable: executable, args: ["-c", config.path],
                                   environment: environment,
                                   currentDirectory: NSHomeDirectory())
         } catch {
             NSAlert(error: error).runModal()
         }
+    }
+
+    @objc private func openYazi(_ sender: Any?) {
+        guard settings.useYazi == true else { return }
+        guard let executable = YaziSupport.installedExecutable else {
+            let alert = NSAlert()
+            alert.messageText = "Yazi is not installed"
+            alert.informativeText = "Install it yourself with brew install yazi, then try again."
+            alert.runModal()
+            return
+        }
+        let terminal = makeTerminalWindow()
+        terminal.window?.title = "Yazi — Hafþi"
+        var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
+        environment.append("PATH=\(OptionalToolSupport.executableSearchPath)")
+        terminal.startProcess(executable: executable, environment: environment,
+                              currentDirectory: NSHomeDirectory())
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -365,6 +382,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 guard let terminal = self?.activeTerminal else { return }
                 terminal.send(source: terminal, data: Array("brew install sampler".utf8)[...])
             }
+            controller.onOpenYazi = { [weak self] in self?.openYazi(nil) }
+            controller.onInstallYazi = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal, data: Array("brew install yazi".utf8)[...])
+            }
             preferences = controller
         }
         preferences?.showWindow(nil)
@@ -398,6 +420,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         }
         if settings.useSampler == true {
             appMenu.addItem(item("Open Sampler…", action: #selector(openSampler(_:))))
+        }
+        if settings.useYazi == true {
+            appMenu.addItem(item("Open Yazi…", action: #selector(openYazi(_:))))
         }
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(item("Quit Hafþi", action: #selector(quit(_:)), key: "q"))
@@ -436,6 +461,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         }
         if settings.useSampler == true {
             menu.addItem(item("Open Sampler…", action: #selector(openSampler(_:))))
+        }
+        if settings.useYazi == true {
+            menu.addItem(item("Open Yazi…", action: #selector(openYazi(_:))))
         }
         menu.addItem(item("Preferences…", action: #selector(showPreferences(_:))))
         menu.addItem(item("Edit Hafþi Config", action: #selector(editConfig(_:))))
