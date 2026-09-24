@@ -7,9 +7,7 @@ mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Resources"
 cp ".build/release/HafthiMac" "$APP/Contents/MacOS/Hafthi"
 cp Info.plist "$APP/Contents/Info.plist"
-RESOURCE_BUNDLE=".build/release/HafthiMac_HafthiMac.bundle"
-test -f "$RESOURCE_BUNDLE/Resources/SamplerDefault.yml" || test -f "$RESOURCE_BUNDLE/SamplerDefault.yml"
-cp -R "$RESOURCE_BUNDLE" "$APP/Contents/Resources/"
+cp Sources/HafthiMac/Resources/SamplerDefault.yml "$APP/Contents/Resources/SamplerDefault.yml"
 if [ -f ".build/checkouts/SwiftTerm/LICENSE" ]; then
     cp ".build/checkouts/SwiftTerm/LICENSE" "$APP/Contents/Resources/SwiftTerm-LICENSE.txt"
 fi

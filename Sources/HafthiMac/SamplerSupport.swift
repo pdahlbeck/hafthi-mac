@@ -1,9 +1,17 @@
 import Foundation
 
 enum SamplerSupport {
-    private static var bundledConfigURL: URL? {
-        Bundle.module.url(forResource: "SamplerDefault", withExtension: "yml", subdirectory: "Resources")
-            ?? Bundle.module.url(forResource: "SamplerDefault", withExtension: "yml")
+    private static func bundledConfigURL() throws -> URL {
+        if let url = Bundle.main.url(forResource: "SamplerDefault", withExtension: "yml") {
+            return url
+        }
+        // swift run executes from the source tree rather than an .app bundle.
+        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Resources/SamplerDefault.yml")
+        if FileManager.default.fileExists(atPath: source.path) { return source }
+        throw NSError(domain: "Hafthi.Sampler", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "The Sampler dashboard config is missing from Hafþi. Reinstall the app and try again."
+        ])
     }
 
     static var configURL: URL {
@@ -24,18 +32,14 @@ enum SamplerSupport {
         if !FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                                     withIntermediateDirectories: true)
-            guard let bundled = bundledConfigURL else {
-                throw CocoaError(.fileNoSuchFile)
-            }
+            let bundled = try bundledConfigURL()
             try FileManager.default.copyItem(at: bundled, to: url)
         }
         return url
     }
 
     static func restoreDefault() throws {
-        guard let bundled = bundledConfigURL else {
-            throw CocoaError(.fileNoSuchFile)
-        }
+        let bundled = try bundledConfigURL()
         try FileManager.default.createDirectory(at: configURL.deletingLastPathComponent(),
                                                 withIntermediateDirectories: true)
         let data = try Data(contentsOf: bundled)
