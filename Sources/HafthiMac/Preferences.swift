@@ -68,7 +68,7 @@ final class PreferencesWindow: NSWindowController {
             case .appearance: return "Appearance"
             case .terminal: return "Terminal"
             case .background: return "Background"
-            case .plugins: return "Plugins"
+            case .plugins: return "Integrations"
             }
         }
     }
@@ -213,7 +213,7 @@ final class PreferencesWindow: NSWindowController {
         ])
 
         if selectedPage == .plugins, selectedPlugin != nil {
-            let back = NSButton(title: "‹  Plugins", target: self, action: #selector(backToPlugins(_:)))
+            let back = NSButton(title: "‹  Integrations", target: self, action: #selector(backToPlugins(_:)))
             back.isBordered = false
             back.contentTintColor = .controlAccentColor
             stack.addArrangedSubview(back)
