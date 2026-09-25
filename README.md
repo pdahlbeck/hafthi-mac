@@ -5,7 +5,7 @@ A native macOS version of [Hafþi for Linux](https://github.com/pdahlbeck/hafthi
 
 ## Download
 
-Download [Hafþi 0.1.0 beta 18 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.18). Unzip `Hafthi-0.1.0-beta.18-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
+Download [Hafþi 0.1.0 beta 19 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.19). Unzip `Hafthi-0.1.0-beta.19-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
@@ -38,7 +38,7 @@ The right-click menu also offers **Reset Font Size**, **Clear Scrollback** and *
 
 ### Ghost Tasks
 
-Use `g make -j4` to start a non-interactive task without mixing its output into your prompt. Run `g jobs` to check status, `g log ID` to read its output, `g follow ID` to watch it live (Ctrl+C stops watching), and `g clean` to remove completed logs. The start message gives you the ID. Quote pipelines or expressions: `g 'make && echo done'`. Tasks run in the directory where you started them. A small badge at the bottom right blinks between `{ö}` and `{-}` while tasks run, then disappears; a desktop notification announces completion. Logs are private to your account in `~/Library/Application Support/Hafthi/GhostTasks`. This `g` command is available inside Hafþi; run password prompts and interactive apps directly in the foreground.
+Use `g make -j4` to start a non-interactive task without mixing its output into your prompt. Run `g jobs` to check status, `g log ID` to read its output, `g follow ID` to watch it live (Ctrl+C stops watching), and `g clean` to remove completed logs. Jobs are numbered `ghost1`, `ghost2`, and so on (numbers freed by `g clean` may be reused). Older `job.*` logs remain accessible. The start message gives you the ID. Quote pipelines or expressions: `g 'make && echo done'`. Tasks run in the directory where you started them. A small badge at the bottom right blinks between `{ö}` and `{-}` while tasks run, then disappears; a desktop notification announces completion. Logs are private to your account in `~/Library/Application Support/Hafthi/GhostTasks`. This `g` command is available inside Hafþi; run password prompts and interactive apps directly in the foreground.
 
 ### Optional Fish and Starship
 
