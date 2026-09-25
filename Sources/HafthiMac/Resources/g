@@ -113,17 +113,35 @@ case ${1:-} in
     *)
         [ "$1" != -- ] || shift
         [ "$#" -gt 0 ] || { usage; exit 2; }
-        case ${1##*/} in
-            sudo|su|doas|ssh|vim|nvim|nano|micro|yazi|less|top|htop)
-                printf '%s needs an interactive terminal; run it normally.\n' "$1" >&2
+        # Refuse obvious interactive programs before creating a job. Also catch
+        # simple quoted commands such as g 'yay -Syu'.
+        first=${1%% *}
+        case ${first##*/} in
+            sudo|su|doas|pkexec|ssh|yay|paru|pacman|apt|apt-get|dnf|zypper|brew|vim|nvim|nano|micro|yazi|less|top|htop)
+                printf '%s needs an interactive terminal; run it normally.\n' "$first" >&2
                 exit 2
                 ;;
         esac
+
+        # nohup alone leaves a controlling terminal attached. sudo and similar
+        # programs can reopen /dev/tty even with stdin/stdout redirected.
+        if command -v setsid >/dev/null 2>&1; then
+            detach=$(command -v setsid)
+        else
+            case $0 in
+                */*) detach="${0%/*}/g-detach" ;;
+                *) detach=g-detach ;;
+            esac
+            [ -x "$detach" ] || {
+                printf 'Ghost Tasks requires setsid or the bundled g-detach helper.\n' >&2
+                exit 2
+            }
+        fi
         dir=$(next_task_dir)
         printf '%s' "$*" > "$dir/command"
         : > "$dir/output"
         # Do not inherit stdin or stdout from the interactive terminal.
-        nohup "$0" __run "${dir##*/}" "$PWD" "$@" </dev/null >/dev/null 2>&1 &
+        nohup "$detach" "$0" __run "${dir##*/}" "$PWD" "$@" </dev/null >/dev/null 2>&1 &
         printf 'Ghost Task %s started. Use g jobs or g log %s.\n' "${dir##*/}" "${dir##*/}"
         ;;
 esac
