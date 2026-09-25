@@ -13,15 +13,35 @@ usage() {
 
 task_dir() {
     case ${1:-} in
+        ghost[0-9]*)
+            case ${1#ghost} in
+                *[!0-9]*) printf 'Invalid Ghost Task ID\n' >&2; return 1 ;;
+            esac
+            ;;
         job.*)
+            # Jobs from older Hafþi versions remain readable.
             case ${1#job.} in
                 ''|*[!A-Za-z0-9]*) printf 'Invalid Ghost Task ID\n' >&2; return 1 ;;
             esac
-            [ -d "$state/$1" ] || { printf 'Unknown Ghost Task: %s\n' "$1" >&2; return 1; }
-            printf '%s/%s\n' "$state" "$1"
             ;;
         *) printf 'Invalid Ghost Task ID\n' >&2; return 1 ;;
     esac
+    [ -d "$state/$1" ] || { printf 'Unknown Ghost Task: %s\n' "$1" >&2; return 1; }
+    printf '%s/%s\n' "$state" "$1"
+}
+
+next_task_dir() {
+    # mkdir reserves the number atomically when several terminals start tasks at once.
+    number=1
+    while :; do
+        candidate="$state/ghost$number"
+        if mkdir "$candidate" 2>/dev/null; then
+            printf '%s\n' "$candidate"
+            return
+        fi
+        [ -e "$candidate" ] || { printf 'Cannot create Ghost Task in %s\n' "$state" >&2; return 1; }
+        number=$((number + 1))
+    done
 }
 
 status() {
@@ -41,7 +61,7 @@ case ${1:-} in
     help|-h|--help|'') usage ;;
     jobs)
         found=0
-        for dir in "$state"/job.*; do
+        for dir in "$state"/ghost[0-9]* "$state"/job.*; do
             [ -d "$dir" ] || continue
             found=1
             printf '%s  %s  %s\n' "${dir##*/}" "$(status "$dir")" "$(cat "$dir/command")"
@@ -54,7 +74,7 @@ case ${1:-} in
         if [ "$action" = follow ]; then tail -n 80 -f "$dir/output"; else cat "$dir/output"; fi
         ;;
     clean)
-        for dir in "$state"/job.*; do
+        for dir in "$state"/ghost[0-9]* "$state"/job.*; do
             [ -d "$dir" ] || continue
             [ -f "$dir/exit" ] && rm -r "$dir"
         done
@@ -99,7 +119,7 @@ case ${1:-} in
                 exit 2
                 ;;
         esac
-        dir=$(mktemp -d "$state/job.XXXXXXXX")
+        dir=$(next_task_dir)
         printf '%s' "$*" > "$dir/command"
         : > "$dir/output"
         # Do not inherit stdin or stdout from the interactive terminal.

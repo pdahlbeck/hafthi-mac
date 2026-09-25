@@ -1,7 +1,8 @@
-Hafþi beta 18 for Apple Silicon Macs (macOS 13 or later).
+Hafþi beta 19 for Apple Silicon Macs (macOS 13 or later).
 
-- Download `Hafthi-0.1.0-beta.18-macOS-arm64.zip`, unzip it, and replace `Hafþi.app` in Applications. No Xcode or build tools are needed.
-- Ghost Tasks now show a small blinking `{ö}` / `{-}` badge in the bottom right while a task is running. The badge disappears when the last task completes.
+- Download `Hafthi-0.1.0-beta.19-macOS-arm64.zip`, unzip it, and replace `Hafþi.app` in Applications. No Xcode or build tools are needed.
+- Ghost Tasks use short IDs like `ghost1`, `ghost2`, etc. Older `job.*` logs remain accessible.
+- Ghost Tasks show a small blinking `{ö}` / `{-}` badge in the bottom right while a task is running. The badge disappears when the last task completes.
 - Run `g make -j4` to work in the background, `g jobs` to see its status, and `g log ID` to read captured output. Completion notifications are sent by macOS.
 - Keep the optional tools section named **Integrations**.
 

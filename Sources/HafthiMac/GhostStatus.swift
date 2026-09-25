@@ -12,7 +12,10 @@ enum GhostStatus {
         ) else { return false }
 
         return entries.contains { entry in
-            guard entry.lastPathComponent.hasPrefix("job."),
+            let name = entry.lastPathComponent
+            let digits = name.hasPrefix("ghost") ? name.dropFirst(5) : Substring()
+            let numbered = !digits.isEmpty && digits.allSatisfy { "0123456789".contains($0) }
+            guard (numbered || name.hasPrefix("job.")),
                   (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
                   !FileManager.default.fileExists(atPath: entry.appendingPathComponent("exit").path)
             else { return false }
