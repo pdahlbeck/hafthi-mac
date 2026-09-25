@@ -9,6 +9,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check interactive Ghost Tasks
+        run: sh tests/ghost-interactive.sh
       - name: Build with SwiftPM
         run: swift build --build-system native
       - name: Build app bundle
