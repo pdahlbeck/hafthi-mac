@@ -114,10 +114,35 @@ case ${1:-} in
         [ "$1" != -- ] || shift
         [ "$#" -gt 0 ] || { usage; exit 2; }
         # Refuse obvious interactive programs before creating a job. Also catch
-        # simple quoted commands such as g 'yay -Syu'.
+        # simple quoted commands such as g 'brew upgrade'.
         first=${1%% *}
         case ${first##*/} in
-            sudo|su|doas|pkexec|ssh|yay|paru|pacman|apt|apt-get|dnf|zypper|brew|vim|nvim|nano|micro|yazi|less|top|htop)
+            brew|sudo|su|doas|pkexec)
+                # Passwords and package selections need a real terminal.
+                case $1 in
+                    *' '*)
+                        printf 'Write interactive arguments separately, e.g. g brew upgrade.\n' >&2
+                        exit 2
+                        ;;
+                esac
+                program=${first##*/}
+                command -v "$program" >/dev/null 2>&1 || {
+                    printf '%s is not installed.\n' "$program" >&2
+                    exit 2
+                }
+                case $0 in
+                    */*) app="${HAFTHI_BIN:-${0%/*}/../../MacOS/Hafthi}" ;;
+                    *) app="${HAFTHI_BIN:-Hafthi}" ;;
+                esac
+                [ -x "$app" ] || {
+                    printf 'Hafþi executable not found: %s\n' "$app" >&2
+                    exit 2
+                }
+                nohup "$app" --interactive "$@" </dev/null >/dev/null 2>&1 &
+                printf '%s opened in a separate Hafþi window for secure input.\n' "$program"
+                exit 0
+                ;;
+            ssh|yay|paru|pacman|apt|apt-get|dnf|zypper|vim|nvim|nano|micro|yazi|less|top|htop)
                 printf '%s needs an interactive terminal; run it normally.\n' "$first" >&2
                 exit 2
                 ;;
