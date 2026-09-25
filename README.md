@@ -48,21 +48,21 @@ Enable **Command help** in Preferences. Install [tgpt](https://github.com/aandre
 
 ### Optional Sampler dashboard
 
-Install [Sampler](https://github.com/sqshq/sampler) yourself with `brew install sampler`. Open **Preferences → Plugins → Sampler**, enable it, and click **Open Sampler**. It opens in its own Hafþi window; the app menu and right-click menu also offer **Open Sampler…** while enabled. **Install Sampler…** types the Homebrew command into your current terminal without running it.
+Install [Sampler](https://github.com/sqshq/sampler) yourself with `brew install sampler`. Open **Preferences → Integrations → Sampler**, enable it, and click **Open Sampler**. It opens in its own Hafþi window; the app menu and right-click menu also offer **Open Sampler…** while enabled. **Install Sampler…** types the Homebrew command into your current terminal without running it.
 
 The first launch copies the included example dashboard to `~/Library/Application Support/Hafthi/sampler.yml`. **Edit dashboard config…** opens that file. Your edits survive app updates; **Restore default…** resets it only after confirmation. The example periodically runs local commands for CPU, memory, uptime and time, and checks GitHub response time. Review the YAML before running it, especially if you change its commands or destinations. The GitHub response alert uses `bc`; install it separately if you want that alert.
 
 ### Optional Micro editor
 
-Install [Micro](https://github.com/micro-editor/micro) yourself with `brew install micro`. Open **Preferences → Plugins → Micro**, enable it, and click **Open Micro**. It opens an empty buffer in its own Hafþi window. The app menu and right-click menu also offer **Open Micro…** while enabled; the installation button only types the Homebrew command in the current terminal. You can also run `micro filename` directly in a shell. Hafþi does not change your default editor.
+Install [Micro](https://github.com/micro-editor/micro) yourself with `brew install micro`. Open **Preferences → Integrations → Micro**, enable it, and click **Open Micro**. It opens an empty buffer in its own Hafþi window. The app menu and right-click menu also offer **Open Micro…** while enabled; the installation button only types the Homebrew command in the current terminal. You can also run `micro filename` directly in a shell. Hafþi does not change your default editor.
 
 ### Optional Yazi file manager
 
-Install [Yazi](https://github.com/sxyazi/yazi) yourself with `brew install yazi`. Open **Preferences → Plugins → Yazi**, enable it, and click **Open Yazi**. It starts in your home directory in a dedicated Hafþi window. The app menu and right-click menu also offer **Open Yazi…** while enabled. **Install Yazi…** types the Homebrew command into your current terminal without running it. Image previews may be limited because Hafþi does not currently advertise a Yazi-supported image protocol. Yazi and its optional preview tools are not bundled with Hafþi.
+Install [Yazi](https://github.com/sxyazi/yazi) yourself with `brew install yazi`. Open **Preferences → Integrations → Yazi**, enable it, and click **Open Yazi**. It starts in your home directory in a dedicated Hafþi window. The app menu and right-click menu also offer **Open Yazi…** while enabled. **Install Yazi…** types the Homebrew command into your current terminal without running it. Image previews may be limited because Hafþi does not currently advertise a Yazi-supported image protocol. Yazi and its optional preview tools are not bundled with Hafþi.
 
 ## Preferences and configuration
 
-Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Plugins**. The Fish, Starship, tgpt, Sampler, Yazi and Micro cards each have an on/off switch; click a card to open its detailed settings, installation instructions, and GitHub repository link. These optional tools are installed separately via Homebrew. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish and Starship startup settings take effect in new windows.
+Use **⌘ ,** to open Preferences. Its sidebar has **Appearance** (font, colors, opacity), **Terminal** (padding, scrollback), **Background** (image/GIF mode), and **Integrations**. The Fish, Starship, tgpt, Sampler, Yazi and Micro cards each have an on/off switch; click a card to open its detailed settings, installation instructions, and GitHub repository link. These optional tools are installed separately via Homebrew. Preferences are saved in `~/Library/Application Support/Hafthi/config.json`. You can open that file from **Edit Hafþi Config** in the right-click menu. Changes to the Fish and Starship startup settings take effect in new windows.
 
 ## Build from source
 
