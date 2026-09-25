@@ -258,6 +258,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 args += ["-C", commands.joined(separator: "; ")]
             }
         }
+        // Expose the bundled Ghost Tasks helper only inside Hafþi's shell.
+        if let resources = Bundle.main.resourceURL {
+            let helper = resources.appendingPathComponent("bin/g")
+            if FileManager.default.isExecutableFile(atPath: helper.path) {
+                let helperDir = helper.deletingLastPathComponent().path
+                var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
+                environment.append("PATH=\(helperDir):\(OptionalToolSupport.executableSearchPath)")
+                environment.append("HAFTHI_GHOST_SHELL=\(shell)")
+                environment.append("HAFTHI_GHOST_DIR=\(NSHomeDirectory())/Library/Application Support/Hafthi/GhostTasks")
+                terminal.startProcess(executable: shell, args: args,
+                                      environment: environment,
+                                      currentDirectory: NSHomeDirectory())
+                return
+            }
+        }
         terminal.startProcess(executable: shell, args: args,
                               currentDirectory: NSHomeDirectory())
     }
