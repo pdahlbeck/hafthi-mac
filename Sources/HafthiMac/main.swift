@@ -47,6 +47,8 @@ final class CroppedImageView: NSView {
 final class TerminalWindow: NSWindow {
     let terminal: HafthiTerminalView
     private let imageView = CroppedImageView(frame: .zero)
+    private let ghostBadge = NSView(frame: .zero)
+    private let ghostLabel = NSTextField(labelWithString: "{ö}")
     private var imageBottomConstraint: NSLayoutConstraint!
     private var imageHeightConstraint: NSLayoutConstraint!
     private var imageTrailingConstraint: NSLayoutConstraint!
@@ -105,7 +107,34 @@ final class TerminalWindow: NSWindow {
         topConstraint = terminal.topAnchor.constraint(equalTo: contentView.topAnchor)
         edgeConstraints = [left, right, bottom]
         NSLayoutConstraint.activate(edgeConstraints + [topConstraint])
+
+        ghostBadge.translatesAutoresizingMaskIntoConstraints = false
+        ghostBadge.wantsLayer = true
+        ghostBadge.layer?.backgroundColor = NSColor(calibratedRed: 0.055, green: 0.075, blue: 0.09, alpha: 0.96).cgColor
+        ghostBadge.layer?.borderColor = NSColor(calibratedRed: 0.20, green: 0.54, blue: 0.64, alpha: 1).cgColor
+        ghostBadge.layer?.borderWidth = 1
+        ghostBadge.layer?.cornerRadius = 7
+        ghostBadge.isHidden = true
+        contentView.addSubview(ghostBadge)
+        ghostLabel.translatesAutoresizingMaskIntoConstraints = false
+        ghostLabel.font = .monospacedSystemFont(ofSize: 15, weight: .semibold)
+        ghostLabel.textColor = NSColor(calibratedRed: 0.47, green: 0.86, blue: 0.95, alpha: 1)
+        ghostLabel.alignment = .center
+        ghostBadge.addSubview(ghostLabel)
+        NSLayoutConstraint.activate([
+            ghostBadge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
+            ghostBadge.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+            ghostBadge.widthAnchor.constraint(equalToConstant: 56),
+            ghostBadge.heightAnchor.constraint(equalToConstant: 27),
+            ghostLabel.centerXAnchor.constraint(equalTo: ghostBadge.centerXAnchor),
+            ghostLabel.centerYAnchor.constraint(equalTo: ghostBadge.centerYAnchor)
+        ])
         apply(settings)
+    }
+
+    func showGhostFrame(_ frame: String?) {
+        ghostBadge.isHidden = frame == nil
+        if let frame { ghostLabel.stringValue = frame }
     }
 
     func apply(_ settings: MacSettings) {
@@ -182,6 +211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     private var preferences: PreferencesWindow?
     private weak var lastTerminal: HafthiTerminalView?
     private var scrollMonitor: Any?
+    private var ghostTimer: Timer?
+    private var ghostPhase = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.applicationIconImage = HafthiIcon.make()
@@ -193,6 +224,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             return nil
         }
         openWindow(nil)
+        ghostTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
+            self?.updateGhostIndicators()
+        }
+    }
+
+    private func updateGhostIndicators() {
+        guard !windows.isEmpty else { return }
+        let active = GhostStatus.hasRunningTask()
+        if active { ghostPhase.toggle() } else { ghostPhase = false }
+        let frame: String? = active ? (ghostPhase ? "{ö}" : "{-}") : nil
+        for window in windows.values { window.showGhostFrame(frame) }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
