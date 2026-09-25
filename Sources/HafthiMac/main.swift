@@ -223,7 +223,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             self?.adjustFont(by: event.scrollingDeltaY > 0 ? 1 : -1)
             return nil
         }
-        openWindow(nil)
+        if CommandLine.arguments.count > 1 && CommandLine.arguments[1] == "--interactive" {
+            openInteractiveWindow(Array(CommandLine.arguments.dropFirst(2)))
+        } else {
+            openWindow(nil)
+        }
         ghostTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
             self?.updateGhostIndicators()
         }
@@ -308,6 +312,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
                 environment.append("PATH=\(helperDir):\(OptionalToolSupport.executableSearchPath)")
                 environment.append("HAFTHI_GHOST_SHELL=\(shell)")
+                if let executable = Bundle.main.executableURL {
+                    environment.append("HAFTHI_BIN=\(executable.path)")
+                }
                 environment.append("HAFTHI_GHOST_DIR=\(NSHomeDirectory())/Library/Application Support/Hafthi/GhostTasks")
                 terminal.startProcess(executable: shell, args: args,
                                       environment: environment,
@@ -317,6 +324,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
         }
         terminal.startProcess(executable: shell, args: args,
                               currentDirectory: NSHomeDirectory())
+    }
+
+    private func openInteractiveWindow(_ arguments: [String]) {
+        guard let requested = arguments.first else {
+            NSApp.terminate(nil)
+            return
+        }
+        let name = URL(fileURLWithPath: requested).lastPathComponent
+        let allowed: Set<String> = ["brew", "sudo", "su", "doas", "pkexec"]
+        let executable = OptionalToolSupport.executableSearchPath.split(separator: ":")
+            .map { "\($0)/\(name)" }
+            .first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+        guard allowed.contains(name), let executable else {
+            let alert = NSAlert()
+            alert.messageText = "Interactive command unavailable"
+            alert.informativeText = "\(name) is not installed or supported."
+            alert.runModal()
+            NSApp.terminate(nil)
+            return
+        }
+
+        let terminal = makeTerminalWindow()
+        terminal.window?.title = "\(name) — Hafþi"
+        var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
+        environment.append("PATH=\(OptionalToolSupport.executableSearchPath)")
+        let command = "\"$@\"; result=$?; printf '\\nCommand finished (exit %s). Press Enter to close this window.\\n' \"$result\"; IFS= read -r answer; exit \"$result\""
+        terminal.startProcess(executable: "/bin/sh",
+                              args: ["-c", command, "hafthi-interactive", executable] + Array(arguments.dropFirst()),
+                              environment: environment,
+                              currentDirectory: FileManager.default.currentDirectoryPath)
     }
 
     @objc private func openSampler(_ sender: Any?) {
