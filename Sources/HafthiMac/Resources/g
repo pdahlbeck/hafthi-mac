@@ -1,0 +1,109 @@
+#!/bin/sh
+# Ghost Tasks: run non-interactive commands without writing over the shell prompt.
+set -eu
+umask 077
+
+state=${HAFTHI_GHOST_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/hafthi/ghost-tasks}
+mkdir -p "$state"
+
+usage() {
+    printf 'Ghost Tasks: g command [args...] | g jobs | g log ID | g follow ID | g clean\n'
+    printf 'For a pipeline or shell expression, quote it: g '\''make && echo done'\''\n'
+}
+
+task_dir() {
+    case ${1:-} in
+        job.*)
+            case ${1#job.} in
+                ''|*[!A-Za-z0-9]*) printf 'Invalid Ghost Task ID\n' >&2; return 1 ;;
+            esac
+            [ -d "$state/$1" ] || { printf 'Unknown Ghost Task: %s\n' "$1" >&2; return 1; }
+            printf '%s/%s\n' "$state" "$1"
+            ;;
+        *) printf 'Invalid Ghost Task ID\n' >&2; return 1 ;;
+    esac
+}
+
+status() {
+    if [ -f "$1/exit" ]; then
+        code=$(cat "$1/exit")
+        if [ "$code" -eq 0 ]; then printf 'done'; else printf 'failed (%s)' "$code"; fi
+    elif [ -f "$1/pid" ] && kill -0 "$(cat "$1/pid")" 2>/dev/null; then
+        printf 'running'
+    elif [ ! -f "$1/pid" ]; then
+        printf 'starting'
+    else
+        printf 'stopped'
+    fi
+}
+
+case ${1:-} in
+    help|-h|--help|'') usage ;;
+    jobs)
+        found=0
+        for dir in "$state"/job.*; do
+            [ -d "$dir" ] || continue
+            found=1
+            printf '%s  %s  %s\n' "${dir##*/}" "$(status "$dir")" "$(cat "$dir/command")"
+        done
+        [ "$found" -eq 1 ] || printf 'No Ghost Tasks yet. Try: g sleep 5\n'
+        ;;
+    log|follow)
+        action=$1
+        dir=$(task_dir "${2:-}")
+        if [ "$action" = follow ]; then tail -n 80 -f "$dir/output"; else cat "$dir/output"; fi
+        ;;
+    clean)
+        for dir in "$state"/job.*; do
+            [ -d "$dir" ] || continue
+            [ -f "$dir/exit" ] && rm -r "$dir"
+        done
+        printf 'Removed completed Ghost Tasks.\n'
+        ;;
+    __run)
+        dir=$(task_dir "${2:-}")
+        shift 2
+        workdir=$1
+        shift
+        printf '%s\n' "$$" > "$dir/pid"
+        set +e
+        (
+            cd "$workdir" || exit 1
+            if [ "$#" -eq 1 ]; then
+                case $1 in
+                    *' '*|*';'*|*'|'*|*'&'*)
+                        if [ -x "$1" ]; then "$1"; else "${HAFTHI_GHOST_SHELL:-${SHELL:-/bin/sh}}" -lc "$1"; fi
+                        ;;
+                    *) "$1" ;;
+                esac
+            else
+                "$@"
+            fi
+        ) > "$dir/output" 2>&1 < /dev/null
+        code=$?
+        printf '%s\n' "$code" > "$dir/exit.tmp"
+        mv "$dir/exit.tmp" "$dir/exit"
+        id=${dir##*/}
+        if command -v notify-send >/dev/null 2>&1; then
+            notify-send 'Ghost Tasks' "Task $id finished (exit $code)" >/dev/null 2>&1 || :
+        elif [ "$(uname)" = Darwin ] && command -v osascript >/dev/null 2>&1; then
+            osascript -e "display notification \"Task $id finished (exit $code)\" with title \"Ghost Tasks\"" >/dev/null 2>&1 || :
+        fi
+        ;;
+    *)
+        [ "$1" != -- ] || shift
+        [ "$#" -gt 0 ] || { usage; exit 2; }
+        case ${1##*/} in
+            sudo|su|doas|ssh|vim|nvim|nano|micro|yazi|less|top|htop)
+                printf '%s needs an interactive terminal; run it normally.\n' "$1" >&2
+                exit 2
+                ;;
+        esac
+        dir=$(mktemp -d "$state/job.XXXXXXXX")
+        printf '%s' "$*" > "$dir/command"
+        : > "$dir/output"
+        # Do not inherit stdin or stdout from the interactive terminal.
+        nohup "$0" __run "${dir##*/}" "$PWD" "$@" </dev/null >/dev/null 2>&1 &
+        printf 'Ghost Task %s started. Use g jobs or g log %s.\n' "${dir##*/}" "${dir##*/}"
+        ;;
+esac
