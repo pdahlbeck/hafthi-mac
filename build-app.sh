@@ -4,10 +4,11 @@ set -eu
 swift build -c release --build-system native
 APP="build/Hafþi.app"
 mkdir -p "$APP/Contents/MacOS"
-mkdir -p "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/Resources" "$APP/Contents/Resources/bin"
 cp ".build/release/HafthiMac" "$APP/Contents/MacOS/Hafthi"
 cp Info.plist "$APP/Contents/Info.plist"
 cp Sources/HafthiMac/Resources/SamplerDefault.yml "$APP/Contents/Resources/SamplerDefault.yml"
+install -m 755 Sources/HafthiMac/Resources/g "$APP/Contents/Resources/bin/g"
 if [ -f ".build/checkouts/SwiftTerm/LICENSE" ]; then
     cp ".build/checkouts/SwiftTerm/LICENSE" "$APP/Contents/Resources/SwiftTerm-LICENSE.txt"
 fi
