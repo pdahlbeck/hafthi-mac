@@ -113,19 +113,19 @@ final class TerminalWindow: NSWindow {
         ghostBadge.layer?.backgroundColor = NSColor(calibratedRed: 0.055, green: 0.075, blue: 0.09, alpha: 0.96).cgColor
         ghostBadge.layer?.borderColor = NSColor(calibratedRed: 0.20, green: 0.54, blue: 0.64, alpha: 1).cgColor
         ghostBadge.layer?.borderWidth = 1
-        ghostBadge.layer?.cornerRadius = 7
+        ghostBadge.layer?.cornerRadius = 10
         ghostBadge.isHidden = true
         contentView.addSubview(ghostBadge)
         ghostLabel.translatesAutoresizingMaskIntoConstraints = false
-        ghostLabel.font = .monospacedSystemFont(ofSize: 15, weight: .semibold)
+        ghostLabel.font = .monospacedSystemFont(ofSize: 24, weight: .bold)
         ghostLabel.textColor = NSColor(calibratedRed: 0.47, green: 0.86, blue: 0.95, alpha: 1)
         ghostLabel.alignment = .center
         ghostBadge.addSubview(ghostLabel)
         NSLayoutConstraint.activate([
-            ghostBadge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
-            ghostBadge.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
-            ghostBadge.widthAnchor.constraint(equalToConstant: 56),
-            ghostBadge.heightAnchor.constraint(equalToConstant: 27),
+            ghostBadge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
+            ghostBadge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 14),
+            ghostBadge.widthAnchor.constraint(equalToConstant: 92),
+            ghostBadge.heightAnchor.constraint(equalToConstant: 42),
             ghostLabel.centerXAnchor.constraint(equalTo: ghostBadge.centerXAnchor),
             ghostLabel.centerYAnchor.constraint(equalTo: ghostBadge.centerYAnchor)
         ])
