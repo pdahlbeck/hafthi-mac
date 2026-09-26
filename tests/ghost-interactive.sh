@@ -28,3 +28,20 @@ done
 [ "$(cat "$test_dir/arguments")" = "$(printf '%s\n' --interactive brew upgrade)" ]
 grep -q 'separate Hafþi window' "$test_dir/message"
 [ ! -d "$test_dir/state/ghost1" ]
+
+# The originating Hafþi window receives a NUL-separated PTY request.
+mkdir "$test_dir/inbox"
+(
+    attempt=0
+    while [ ! -f "$test_dir/inbox/ghost1" ] && [ "$attempt" -lt 30 ]; do
+        sleep 0.1
+        attempt=$((attempt + 1))
+    done
+    [ -f "$test_dir/inbox/ghost1" ]
+    printf '%s\n' "$$" > "$HAFTHI_GHOST_DIR/ghost1/pid"
+) &
+inbox_reader=$!
+HAFTHI_GHOST_INBOX="$test_dir/inbox" PATH="$test_dir/bin:$PATH" "$test_dir/g" brew upgrade > "$test_dir/drawer-message"
+wait "$inbox_reader"
+grep -q 'Ctrl+G opens its drawer' "$test_dir/drawer-message"
+[ "$(tr '\000' '\n' < "$test_dir/inbox/ghost1")" = "$(printf '%s\n' "$PWD" brew upgrade)" ]
