@@ -19,7 +19,7 @@ final class GhostOutputLog: @unchecked Sendable {
     }
 
     func finish() {
-        queue.async { [handle] in
+        queue.sync { [handle] in
             try? handle.close()
         }
     }
