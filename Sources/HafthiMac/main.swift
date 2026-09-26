@@ -46,6 +46,15 @@ final class CroppedImageView: NSView {
 
 final class TerminalWindow: NSWindow {
     let terminal: HafthiTerminalView
+    let ghostInbox: URL
+    private(set) var ghostTerminal: HafthiTerminalView?
+    private(set) var ghostTaskID: String?
+    private var ghostTaskDirectory: URL?
+    private var ghostRunning = false
+    private let ghostDrawer = NSView(frame: .zero)
+    private let drawerTitle = NSTextField(labelWithString: "Ghost Task · Ctrl+G to return")
+    private var drawerHeight: NSLayoutConstraint!
+    private var drawerOpen = false
     private let imageView = CroppedImageView(frame: .zero)
     private let ghostBadge = NSView(frame: .zero)
     private let ghostLabel = NSTextField(labelWithString: "{ö}")
@@ -68,6 +77,11 @@ final class TerminalWindow: NSWindow {
         let frame = NSRect(x: 0, y: 0, width: 980, height: 640)
         terminal = HafthiTerminalView(frame: frame, font: nil,
                                       options: TerminalOptions(scrollback: max(100, settings.scrollback)))
+        let state = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Library/Application Support/Hafthi/GhostTasks", isDirectory: true)
+        ghostInbox = state.appendingPathComponent("inbox-\(getpid())-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: ghostInbox, withIntermediateDirectories: true,
+                                                 attributes: [.posixPermissions: 0o700])
         super.init(contentRect: frame,
                    styleMask: [.titled, .closable, .miniaturizable, .resizable],
                    backing: .buffered, defer: false)
@@ -129,12 +143,115 @@ final class TerminalWindow: NSWindow {
             ghostLabel.centerXAnchor.constraint(equalTo: ghostBadge.centerXAnchor),
             ghostLabel.centerYAnchor.constraint(equalTo: ghostBadge.centerYAnchor)
         ])
+
+        ghostDrawer.translatesAutoresizingMaskIntoConstraints = false
+        ghostDrawer.wantsLayer = true
+        ghostDrawer.layer?.backgroundColor = NSColor(calibratedRed: 0.055, green: 0.075, blue: 0.09, alpha: 0.99).cgColor
+        ghostDrawer.layer?.borderColor = NSColor(calibratedRed: 0.20, green: 0.54, blue: 0.64, alpha: 1).cgColor
+        ghostDrawer.layer?.borderWidth = 2
+        ghostDrawer.layer?.cornerRadius = 10
+        ghostDrawer.layer?.masksToBounds = true
+        ghostDrawer.isHidden = true
+        contentView.addSubview(ghostDrawer)
+        drawerHeight = ghostDrawer.heightAnchor.constraint(equalToConstant: 0)
+        NSLayoutConstraint.activate([
+            ghostDrawer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 9),
+            ghostDrawer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -9),
+            ghostDrawer.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 9),
+            drawerHeight
+        ])
+        drawerTitle.translatesAutoresizingMaskIntoConstraints = false
+        drawerTitle.font = .monospacedSystemFont(ofSize: 15, weight: .semibold)
+        drawerTitle.textColor = NSColor(calibratedRed: 0.47, green: 0.86, blue: 0.95, alpha: 1)
+        ghostDrawer.addSubview(drawerTitle)
+        NSLayoutConstraint.activate([
+            drawerTitle.leadingAnchor.constraint(equalTo: ghostDrawer.leadingAnchor, constant: 15),
+            drawerTitle.topAnchor.constraint(equalTo: ghostDrawer.topAnchor, constant: 12)
+        ])
         apply(settings)
     }
 
     func showGhostFrame(_ frame: String?) {
         ghostBadge.isHidden = frame == nil
         if let frame { ghostLabel.stringValue = frame }
+    }
+
+    @discardableResult
+    func beginGhost(id: String, taskDirectory: URL, executable: String, arguments: [String],
+                    cwd: String, settings: MacSettings, owner: AppDelegate) -> Bool {
+        if ghostTerminal != nil {
+            guard !ghostRunning else { return false }
+            ghostTerminal?.processDelegate = nil
+            ghostTerminal?.removeFromSuperview()
+            ghostTerminal = nil
+        }
+        let view = HafthiTerminalView(frame: .zero, font: nil,
+                                      options: TerminalOptions(scrollback: max(100, settings.scrollback)))
+        view.owner = owner
+        view.processDelegate = owner
+        view.optionAsMetaKey = false
+        view.linkReporting = .implicit
+        view.font = terminal.font
+        view.nativeForegroundColor = NSColor(hafthiHex: settings.foreground) ?? .white
+        view.nativeBackgroundColor = NSColor(calibratedRed: 0.055, green: 0.075, blue: 0.09, alpha: 1)
+        view.caretColor = NSColor(hafthiHex: settings.cursor) ?? .white
+        try? view.setUseMetal(true)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        ghostDrawer.addSubview(view)
+        NSLayoutConstraint.activate([
+            view.leadingAnchor.constraint(equalTo: ghostDrawer.leadingAnchor, constant: 15),
+            view.trailingAnchor.constraint(equalTo: ghostDrawer.trailingAnchor, constant: -15),
+            view.topAnchor.constraint(equalTo: drawerTitle.bottomAnchor, constant: 12),
+            view.bottomAnchor.constraint(equalTo: ghostDrawer.bottomAnchor, constant: -12)
+        ])
+        ghostTerminal = view
+        ghostTaskID = id
+        ghostTaskDirectory = taskDirectory
+        ghostRunning = true
+        drawerTitle.stringValue = "Ghost Task \(id) · Ctrl+G to return"
+        var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
+        environment.append("PATH=\(OptionalToolSupport.executableSearchPath)")
+        let command = "\"$@\"; result=$?; printf '\\nCommand finished (exit %s). Press Ctrl+G to return.\\n' \"$result\"; exit \"$result\""
+        view.startProcess(executable: "/bin/sh",
+                          args: ["-c", command, "hafthi-ghost", executable] + arguments,
+                          environment: environment, currentDirectory: cwd)
+        try? String(getpid()).write(to: taskDirectory.appendingPathComponent("pid"),
+                                    atomically: true, encoding: .utf8)
+        return true
+    }
+
+    @discardableResult
+    func toggleGhostDrawer() -> Bool {
+        guard let ghostTerminal, let contentView else { return false }
+        drawerOpen.toggle()
+        if drawerOpen { ghostDrawer.isHidden = false }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.22
+            drawerHeight.animator().constant = drawerOpen ? max(160, contentView.bounds.height * 0.70) : 0
+            contentView.layoutSubtreeIfNeeded()
+        } completionHandler: { [weak self] in
+            guard let self else { return }
+            if !self.drawerOpen { self.ghostDrawer.isHidden = true }
+        }
+        makeFirstResponder(drawerOpen ? ghostTerminal : terminal)
+        return true
+    }
+
+    func finishGhost(exitCode: Int32?) {
+        guard ghostRunning, let directory = ghostTaskDirectory else { return }
+        ghostRunning = false
+        let code = exitCode ?? 1
+        try? String(code).write(to: directory.appendingPathComponent("exit"), atomically: true, encoding: .utf8)
+        drawerTitle.stringValue = "Ghost Task \(ghostTaskID ?? "") finished (\(code)) · Ctrl+G to return"
+    }
+
+    func stopGhost() {
+        ghostTerminal?.processDelegate = nil
+        if ghostTerminal?.process.running == true {
+            ghostTerminal?.terminate()
+        }
+        finishGhost(exitCode: 130)
+        try? FileManager.default.removeItem(at: ghostInbox)
     }
 
     func apply(_ settings: MacSettings) {
@@ -144,6 +261,7 @@ final class TerminalWindow: NSWindow {
         if terminal.font.fontName != requestedFont.fontName || terminal.font.pointSize != requestedFont.pointSize {
             terminal.font = requestedFont
         }
+        ghostTerminal?.font = requestedFont
         terminal.nativeForegroundColor = NSColor(hafthiHex: settings.foreground) ?? .white
         terminal.nativeBackgroundColor = NSColor(hafthiHex: settings.background) ?? .black
         terminal.caretColor = NSColor(hafthiHex: settings.cursor) ?? .white
@@ -211,6 +329,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     private var preferences: PreferencesWindow?
     private weak var lastTerminal: HafthiTerminalView?
     private var scrollMonitor: Any?
+    private var ghostKeyMonitor: Any?
     private var ghostTimer: Timer?
     private var ghostPhase = false
 
@@ -223,14 +342,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             self?.adjustFont(by: event.scrollingDeltaY > 0 ? 1 : -1)
             return nil
         }
+        ghostKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.modifierFlags.contains(.control),
+                  !event.modifierFlags.contains(.shift),
+                  event.charactersIgnoringModifiers?.lowercased() == "g",
+                  let window = event.window as? TerminalWindow else { return event }
+            return window.toggleGhostDrawer() ? nil : event
+        }
         if CommandLine.arguments.count > 1 && CommandLine.arguments[1] == "--interactive" {
             openInteractiveWindow(Array(CommandLine.arguments.dropFirst(2)))
         } else {
             openWindow(nil)
         }
-        ghostTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
+        ghostTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            self?.processGhostRequests()
             self?.updateGhostIndicators()
         }
+    }
+
+    private func processGhostRequests() {
+        for window in windows.values {
+            guard let requests = try? FileManager.default.contentsOfDirectory(at: window.ghostInbox,
+                includingPropertiesForKeys: nil) else { continue }
+            for request in requests {
+                let id = request.lastPathComponent
+                let digits = id.hasPrefix("ghost") ? id.dropFirst(5) : Substring()
+                guard !digits.isEmpty, digits.allSatisfy({ "0123456789".contains($0) }) else { continue }
+                let data = try? Data(contentsOf: request)
+                try? FileManager.default.removeItem(at: request)
+                let task = window.ghostInbox.deletingLastPathComponent().appendingPathComponent(id, isDirectory: true)
+                let fields = data?.last == 0 ? data?.split(separator: 0).compactMap { String(data: $0, encoding: .utf8) } : nil
+                guard let fields, fields.count >= 2, fields.count < 64,
+                      let requested = fields.dropFirst().first else {
+                    rejectGhost(task, message: "Invalid Ghost Task request")
+                    continue
+                }
+                let name = URL(fileURLWithPath: requested).lastPathComponent
+                guard ["brew", "sudo", "su", "doas", "pkexec"].contains(name),
+                      let executable = OptionalToolSupport.executableSearchPath.split(separator: ":")
+                        .map({ "\($0)/\(name)" })
+                        .first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+                    rejectGhost(task, message: "Interactive command unavailable: \(name)")
+                    continue
+                }
+                guard window.beginGhost(id: id, taskDirectory: task, executable: executable,
+                                        arguments: Array(fields.dropFirst(2)), cwd: fields[0],
+                                        settings: settings, owner: self) else {
+                    rejectGhost(task, message: "A Ghost Task is already running in this window")
+                    continue
+                }
+            }
+        }
+    }
+
+    private func rejectGhost(_ directory: URL, message: String) {
+        try? message.write(to: directory.appendingPathComponent("output"), atomically: true, encoding: .utf8)
+        try? "1".write(to: directory.appendingPathComponent("exit"), atomically: true, encoding: .utf8)
     }
 
     private func updateGhostIndicators() {
@@ -316,6 +483,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                     environment.append("HAFTHI_BIN=\(executable.path)")
                 }
                 environment.append("HAFTHI_GHOST_DIR=\(NSHomeDirectory())/Library/Application Support/Hafthi/GhostTasks")
+                if let window = terminal.window as? TerminalWindow {
+                    environment.append("HAFTHI_GHOST_INBOX=\(window.ghostInbox.path)")
+                }
                 terminal.startProcess(executable: shell, args: args,
                                       environment: environment,
                                       currentDirectory: NSHomeDirectory())
@@ -418,6 +588,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? TerminalWindow else { return }
         // A manually closed window must not receive a later process-exit callback.
+        window.stopGhost()
         window.terminal.processDelegate = nil
         if window.terminal.process.running {
             window.terminal.terminate()
@@ -431,6 +602,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
 
     func processTerminated(source: SwiftTerm.TerminalView, exitCode: Int32?) {
         guard let window = source.window as? TerminalWindow else { return }
+        if let ghost = window.ghostTerminal, source === ghost {
+            window.finishGhost(exitCode: exitCode)
+            return
+        }
         // LocalProcess calls this delegate before childStopped(). Closing here
         // tears down the terminal while SwiftTerm is still on its callback stack.
         DispatchQueue.main.async { [weak window] in
@@ -439,6 +614,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
     }
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
+        if let window = source.window as? TerminalWindow, source === window.ghostTerminal { return }
         source.window?.title = title.isEmpty ? "Hafþi" : "\(title) — Hafþi"
     }
 
