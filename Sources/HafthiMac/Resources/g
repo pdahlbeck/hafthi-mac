@@ -44,6 +44,32 @@ next_task_dir() {
     done
 }
 
+start_in_drawer() {
+    dir=$(next_task_dir)
+    id=${dir##*/}
+    printf '%s' "$*" > "$dir/command"
+    : > "$dir/output"
+    # Argument boundaries are preserved; only the PTY receives subsequent input.
+    printf '%s\0' 'HAFTHI_GHOST_V2' "$PWD" "$PATH" "${HAFTHI_GHOST_SHELL:-${SHELL:-/bin/sh}}" "$@" > "$HAFTHI_GHOST_INBOX/$id.tmp"
+    mv "$HAFTHI_GHOST_INBOX/$id.tmp" "$HAFTHI_GHOST_INBOX/$id"
+    tries=0
+    while [ ! -f "$dir/pid" ] && [ ! -f "$dir/exit" ] && [ "$tries" -lt 40 ]; do
+        sleep 0.1
+        tries=$((tries + 1))
+    done
+    if [ ! -f "$dir/pid" ] && [ ! -f "$dir/exit" ]; then
+        rm -f "$HAFTHI_GHOST_INBOX/$id"
+        printf 'Could not start %s in the Ghost Task drawer. Restart Hafþi and try again.\n' "$id" >&2
+        printf '1\n' > "$dir/exit"
+        return 1
+    fi
+    if [ -f "$dir/exit" ] && [ ! -f "$dir/pid" ]; then
+        cat "$dir/output" >&2
+        return 1
+    fi
+    printf 'Ghost Task %s started. Ctrl+G opens its drawer.\n' "$id"
+}
+
 status() {
     if [ -f "$1/exit" ]; then
         code=$(cat "$1/exit")
@@ -113,6 +139,12 @@ case ${1:-} in
     *)
         [ "$1" != -- ] || shift
         [ "$#" -gt 0 ] || { usage; exit 2; }
+        # Every job gets its own PTY when the originating Hafþi window is available.
+        # This lets a previously quiet command ask for input later.
+        if [ -n "${HAFTHI_GHOST_INBOX:-}" ] && [ -d "$HAFTHI_GHOST_INBOX" ]; then
+            start_in_drawer "$@"
+            exit $?
+        fi
         # Refuse obvious interactive programs before creating a job. Also catch
         # simple quoted commands such as g 'brew upgrade'.
         first=${1%% *}
@@ -130,31 +162,6 @@ case ${1:-} in
                     printf '%s is not installed.\n' "$program" >&2
                     exit 2
                 }
-                if [ -n "${HAFTHI_GHOST_INBOX:-}" ] && [ -d "$HAFTHI_GHOST_INBOX" ]; then
-                    dir=$(next_task_dir)
-                    id=${dir##*/}
-                    printf '%s' "$*" > "$dir/command"
-                    : > "$dir/output"
-                    printf '%s\0' "$PWD" "$@" > "$HAFTHI_GHOST_INBOX/$id.tmp"
-                    mv "$HAFTHI_GHOST_INBOX/$id.tmp" "$HAFTHI_GHOST_INBOX/$id"
-                    tries=0
-                    while [ ! -f "$dir/pid" ] && [ ! -f "$dir/exit" ] && [ "$tries" -lt 40 ]; do
-                        sleep 0.1
-                        tries=$((tries + 1))
-                    done
-                    if [ ! -f "$dir/pid" ] && [ ! -f "$dir/exit" ]; then
-                        rm -f "$HAFTHI_GHOST_INBOX/$id"
-                        printf 'Could not start %s in the Ghost Task drawer. Restart Hafþi and try again.\n' "$program" >&2
-                        printf '1\n' > "$dir/exit"
-                        exit 1
-                    fi
-                    if [ -f "$dir/exit" ] && [ ! -f "$dir/pid" ]; then
-                        cat "$dir/output" >&2
-                        exit 1
-                    fi
-                    printf 'Ghost Task %s started. Ctrl+G opens its drawer.\n' "$id"
-                    exit 0
-                fi
                 case $0 in
                     */*) app="${HAFTHI_BIN:-${0%/*}/../../MacOS/Hafthi}" ;;
                     *) app="${HAFTHI_BIN:-Hafthi}" ;;
