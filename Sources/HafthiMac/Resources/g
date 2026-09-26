@@ -130,6 +130,31 @@ case ${1:-} in
                     printf '%s is not installed.\n' "$program" >&2
                     exit 2
                 }
+                if [ -n "${HAFTHI_GHOST_INBOX:-}" ] && [ -d "$HAFTHI_GHOST_INBOX" ]; then
+                    dir=$(next_task_dir)
+                    id=${dir##*/}
+                    printf '%s' "$*" > "$dir/command"
+                    : > "$dir/output"
+                    printf '%s\0' "$PWD" "$@" > "$HAFTHI_GHOST_INBOX/$id.tmp"
+                    mv "$HAFTHI_GHOST_INBOX/$id.tmp" "$HAFTHI_GHOST_INBOX/$id"
+                    tries=0
+                    while [ ! -f "$dir/pid" ] && [ ! -f "$dir/exit" ] && [ "$tries" -lt 40 ]; do
+                        sleep 0.1
+                        tries=$((tries + 1))
+                    done
+                    if [ ! -f "$dir/pid" ] && [ ! -f "$dir/exit" ]; then
+                        rm -f "$HAFTHI_GHOST_INBOX/$id"
+                        printf 'Could not start %s in the Ghost Task drawer. Restart Hafþi and try again.\n' "$program" >&2
+                        printf '1\n' > "$dir/exit"
+                        exit 1
+                    fi
+                    if [ -f "$dir/exit" ] && [ ! -f "$dir/pid" ]; then
+                        cat "$dir/output" >&2
+                        exit 1
+                    fi
+                    printf 'Ghost Task %s started. Ctrl+G opens its drawer.\n' "$id"
+                    exit 0
+                fi
                 case $0 in
                     */*) app="${HAFTHI_BIN:-${0%/*}/../../MacOS/Hafthi}" ;;
                     *) app="${HAFTHI_BIN:-Hafthi}" ;;
