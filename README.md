@@ -5,7 +5,7 @@ A native macOS version of [Hafþi for Linux](https://github.com/pdahlbeck/hafthi
 
 ## Download
 
-Download [Hafþi 0.1.0 beta 23 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.23). Unzip `Hafthi-0.1.0-beta.23-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
+Download [Hafþi 0.1.0 beta 24 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.24). Unzip `Hafthi-0.1.0-beta.24-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
@@ -19,7 +19,8 @@ The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macO
 | Images | Optional PNG, JPEG, WebP or animated GIF background, with **Off**, **Banner** and **Full image** modes. Banner keeps the image above the terminal text; Full image fills the window behind it. |
 | Shell and prompt | Automatically uses Fish when installed; otherwise uses your normal login shell. Fish's startup message is hidden by default in Hafþi. Starship can be enabled automatically for Fish when installed. |
 | Command help | Optional tgpt integration in Preferences and the right-click menu. The question goes to tgpt's online provider; suggested shell commands are displayed, not executed. |
-| Ghost Tasks | Prefix a command with `g` to run it in a background PTY; open its drawer with Control + G when it needs input. Check status with `g jobs` and read captured output with `g log ID`. |\n| Live dashboards | Optional Sampler integration opens a dedicated terminal window with a bundled example dashboard. Sampler itself is installed separately. |
+| Ghost Tasks | Prefix a command with `g` to run it in a background PTY; open its drawer with Control + G when it needs input. Check status with `g jobs` and read captured output with `g log ID`. |
+| Live dashboards | Optional Sampler integration opens a dedicated terminal window with a bundled example dashboard. Sampler itself is installed separately. |
 | File manager | Optional Yazi integration opens a dedicated terminal window to browse files. Yazi is installed separately. |
 | Text editor | Optional Micro integration opens a dedicated terminal window to edit files. Micro is installed separately. |
 
