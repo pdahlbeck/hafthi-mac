@@ -179,7 +179,12 @@ final class TerminalWindow: NSWindow {
     @discardableResult
     func beginGhost(id: String, taskDirectory: URL, executable: String, arguments: [String],
                     cwd: String, settings: MacSettings, owner: AppDelegate) -> Bool {
-        guard ghostTerminal == nil else { return false }
+        if ghostTerminal != nil {
+            guard !ghostRunning else { return false }
+            ghostTerminal?.processDelegate = nil
+            ghostTerminal?.removeFromSuperview()
+            ghostTerminal = nil
+        }
         let view = HafthiTerminalView(frame: .zero, font: nil,
                                       options: TerminalOptions(scrollback: max(100, settings.scrollback)))
         view.owner = owner
@@ -244,8 +249,8 @@ final class TerminalWindow: NSWindow {
         ghostTerminal?.processDelegate = nil
         if ghostTerminal?.process.running == true {
             ghostTerminal?.terminate()
-            finishGhost(exitCode: 130)
         }
+        finishGhost(exitCode: 130)
         try? FileManager.default.removeItem(at: ghostInbox)
     }
 
