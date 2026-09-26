@@ -2,8 +2,37 @@ import AppKit
 import Darwin
 import SwiftTerm
 
+final class GhostOutputLog: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "se.dahlbeck.Hafthi.ghost-output")
+    private let handle: FileHandle
+
+    init?(url: URL) {
+        guard let handle = try? FileHandle(forWritingTo: url) else { return nil }
+        self.handle = handle
+    }
+
+    func append(_ slice: ArraySlice<UInt8>) {
+        let data = Data(slice)
+        queue.async { [handle] in
+            try? handle.write(contentsOf: data)
+        }
+    }
+
+    func finish() {
+        queue.async { [handle] in
+            try? handle.close()
+        }
+    }
+}
+
 final class HafthiTerminalView: LocalProcessTerminalView {
     weak var owner: AppDelegate?
+    var ghostLog: GhostOutputLog?
+
+    override func dataReceived(slice: ArraySlice<UInt8>) {
+        ghostLog?.append(slice)
+        super.dataReceived(slice: slice)
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? { owner?.contextMenu(for: self) }
 }
@@ -177,8 +206,9 @@ final class TerminalWindow: NSWindow {
     }
 
     @discardableResult
-    func beginGhost(id: String, taskDirectory: URL, executable: String, arguments: [String],
-                    cwd: String, settings: MacSettings, owner: AppDelegate) -> Bool {
+    func beginGhost(id: String, taskDirectory: URL, arguments: [String],
+                    cwd: String, environmentPath: String, shellPath: String,
+                    settings: MacSettings, owner: AppDelegate) -> Bool {
         if ghostTerminal != nil {
             guard !ghostRunning else { return false }
             ghostTerminal?.processDelegate = nil
@@ -188,6 +218,7 @@ final class TerminalWindow: NSWindow {
         let view = HafthiTerminalView(frame: .zero, font: nil,
                                       options: TerminalOptions(scrollback: max(100, settings.scrollback)))
         view.owner = owner
+        view.ghostLog = GhostOutputLog(url: taskDirectory.appendingPathComponent("output"))
         view.processDelegate = owner
         view.optionAsMetaKey = false
         view.linkReporting = .implicit
@@ -210,10 +241,17 @@ final class TerminalWindow: NSWindow {
         ghostRunning = true
         drawerTitle.stringValue = "Ghost Task \(id) · Ctrl+G to return"
         var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
-        environment.append("PATH=\(OptionalToolSupport.executableSearchPath)")
+        environment.append("PATH=\(environmentPath)")
+        let original = arguments.first ?? ""
+        let workingDirectory = URL(fileURLWithPath: cwd, isDirectory: true)
+        let candidate = URL(fileURLWithPath: original, relativeTo: workingDirectory).standardizedFileURL
+        let expression = arguments.count == 1 && !FileManager.default.isExecutableFile(atPath: candidate.path)
+            && original.contains(where: { $0.isWhitespace || ";|&".contains($0) })
+        let launch = expression ? shellPath : original
+        let launchArguments = expression ? ["-lc", original] : Array(arguments.dropFirst())
         let command = "\"$@\"; result=$?; printf '\\nCommand finished (exit %s). Press Ctrl+G to return.\\n' \"$result\"; exit \"$result\""
         view.startProcess(executable: "/bin/sh",
-                          args: ["-c", command, "hafthi-ghost", executable] + arguments,
+                          args: ["-c", command, "hafthi-ghost", launch] + launchArguments,
                           environment: environment, currentDirectory: cwd)
         try? String(getpid()).write(to: taskDirectory.appendingPathComponent("pid"),
                                     atomically: true, encoding: .utf8)
@@ -240,6 +278,7 @@ final class TerminalWindow: NSWindow {
     func finishGhost(exitCode: Int32?) {
         guard ghostRunning, let directory = ghostTaskDirectory else { return }
         ghostRunning = false
+        ghostTerminal?.ghostLog?.finish()
         let code = exitCode ?? 1
         try? String(code).write(to: directory.appendingPathComponent("exit"), atomically: true, encoding: .utf8)
         drawerTitle.stringValue = "Ghost Task \(ghostTaskID ?? "") finished (\(code)) · Ctrl+G to return"
@@ -372,21 +411,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 try? FileManager.default.removeItem(at: request)
                 let task = window.ghostInbox.deletingLastPathComponent().appendingPathComponent(id, isDirectory: true)
                 let fields = data?.last == 0 ? data?.split(separator: 0).compactMap { String(data: $0, encoding: .utf8) } : nil
-                guard let fields, fields.count >= 2, fields.count < 64,
-                      let requested = fields.dropFirst().first else {
-                    rejectGhost(task, message: "Invalid Ghost Task request")
+                guard let fields, fields.count >= 5, fields.count < 64,
+                      fields[0] == "HAFTHI_GHOST_V2" else {
+                    rejectGhost(task, message: "Invalid Ghost Task request. Restart Hafþi.")
                     continue
                 }
-                let name = URL(fileURLWithPath: requested).lastPathComponent
-                guard ["brew", "sudo", "su", "doas", "pkexec"].contains(name),
-                      let executable = OptionalToolSupport.executableSearchPath.split(separator: ":")
-                        .map({ "\($0)/\(name)" })
-                        .first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-                    rejectGhost(task, message: "Interactive command unavailable: \(name)")
-                    continue
-                }
-                guard window.beginGhost(id: id, taskDirectory: task, executable: executable,
-                                        arguments: Array(fields.dropFirst(2)), cwd: fields[0],
+                guard window.beginGhost(id: id, taskDirectory: task,
+                                        arguments: Array(fields.dropFirst(4)), cwd: fields[1],
+                                        environmentPath: fields[2], shellPath: fields[3],
                                         settings: settings, owner: self) else {
                     rejectGhost(task, message: "A Ghost Task is already running in this window")
                     continue
