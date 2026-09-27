@@ -503,7 +503,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             // other terminals, but let g reach the bundled Ghost Tasks helper here.
             if let helper = Bundle.main.resourceURL?.appendingPathComponent("bin/g"),
                FileManager.default.isExecutableFile(atPath: helper.path) {
-                commands.append("function g; command \\(Self.fishQuoted(helper.path)) $argv; end")
+                commands.append("function g; command \(Self.fishQuoted(helper.path)) $argv; end")
             }
             if !commands.isEmpty {
                 args += ["-C", commands.joined(separator: "; ")]
