@@ -9,6 +9,7 @@ cp ".build/release/HafthiMac" "$APP/Contents/MacOS/Hafthi"
 cp Info.plist "$APP/Contents/Info.plist"
 cp Sources/HafthiMac/Resources/SamplerDefault.yml "$APP/Contents/Resources/SamplerDefault.yml"
 install -m 755 Sources/HafthiMac/Resources/g "$APP/Contents/Resources/bin/g"
+ln -sf g "$APP/Contents/Resources/bin/ghost"
 clang -O2 -Wall -Wextra scripts/ghost-detach.c \
     -o "$APP/Contents/Resources/bin/g-detach"
 if [ -f ".build/checkouts/SwiftTerm/LICENSE" ]; then
