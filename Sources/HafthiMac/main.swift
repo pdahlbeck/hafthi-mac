@@ -499,6 +499,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 // use its absolute path even if a Finder launch has a minimal PATH.
                 commands.append("if not functions -q __starship_set_job_count; \(Self.fishQuoted(starship)) init fish | source; end")
             }
+            // Fish -C runs after config.fish. Keep the user's Git shortcut in
+            // other terminals, but let g reach the bundled Ghost Tasks helper here.
+            if let helper = Bundle.main.resourceURL?.appendingPathComponent("bin/g"),
+               FileManager.default.isExecutableFile(atPath: helper.path) {
+                commands.append("function g; command \(Self.fishQuoted(helper.path)) $argv; end")
+            }
             if !commands.isEmpty {
                 args += ["-C", commands.joined(separator: "; ")]
             }
