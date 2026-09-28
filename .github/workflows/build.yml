@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Check interactive Ghost Tasks
@@ -15,11 +15,22 @@ jobs:
         run: swift build --build-system native
       - name: Build app bundle
         run: bash build-app.sh
+      - name: Verify Apple Silicon app signature
+        run: |
+          lipo build/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64
+          codesign --verify --deep --strict build/Hafþi.app
       - name: Verify bundled Sampler dashboard
         run: |
           swift -e 'import Foundation; guard let bundle = Bundle(path: FileManager.default.currentDirectoryPath + "/build/Hafþi.app"), let url = bundle.url(forResource: "SamplerDefault", withExtension: "yml"), let data = try? Data(contentsOf: url), !data.isEmpty else { fatalError("Sampler config is not readable from Hafþi.app") }'
       - name: Package test app
         run: ditto -c -k --keepParent "build/Hafþi.app" "Hafthi-macOS-test.zip"
+      - name: Verify downloadable app ZIP
+        run: |
+          mkdir -p build/zip-check
+          ditto -x -k Hafthi-macOS-test.zip build/zip-check
+          test -x build/zip-check/Hafþi.app/Contents/MacOS/Hafthi
+          lipo build/zip-check/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64
+          codesign --verify --deep --strict build/zip-check/Hafþi.app
       - name: Upload test app
         uses: actions/upload-artifact@v4
         with:

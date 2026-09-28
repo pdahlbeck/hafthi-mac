@@ -29,4 +29,6 @@ for size in 16 32 128 256 512; do
         --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Hafthi.icns"
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict "$APP"
 printf 'Built %s\n' "$APP"
