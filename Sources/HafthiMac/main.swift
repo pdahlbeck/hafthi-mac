@@ -73,6 +73,74 @@ final class CroppedImageView: NSView {
     }
 }
 
+final class GhostIndicatorControl: NSControl {
+    var phase = false {
+        didSet { needsDisplay = true }
+    }
+
+    override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        let glow = NSColor(calibratedRed: 0.25, green: 1.0, blue: 0.32,
+                           alpha: phase ? 1.0 : 0.78)
+        let pixel = floor(min(bounds.width / 16.0, bounds.height / 12.0))
+        guard pixel >= 1 else { return }
+        let originX = floor((bounds.width - pixel * 16.0) / 2.0)
+        let originY = floor((bounds.height - pixel * 12.0) / 2.0)
+
+        func cell(_ x: Int, _ y: Int, _ color: NSColor) {
+            color.setFill()
+            NSBezierPath(rect: NSRect(
+                x: originX + CGFloat(x) * pixel,
+                y: originY + CGFloat(y) * pixel,
+                width: pixel,
+                height: pixel
+            )).fill()
+        }
+
+        let outerRows: [[ClosedRange<Int>]] = [
+            [5...10],
+            [3...12],
+            [2...13],
+            [1...14],
+            [1...14],
+            [0...15],
+            [0...15],
+            [0...15],
+            [1...14],
+            [1...14],
+            [1...3, 5...7, 9...11, 13...14],
+            [2...3, 6...7, 10...11, 13...13]
+        ]
+        for (y, ranges) in outerRows.enumerated() {
+            for range in ranges {
+                for x in range { cell(x, y, glow) }
+            }
+        }
+
+        let inside = NSColor(calibratedWhite: 0.015, alpha: 1.0)
+        let innerRows: [(Int, ClosedRange<Int>)] = [
+            (2, 5...10), (3, 3...12), (4, 3...12), (5, 2...13),
+            (6, 2...13), (7, 2...13), (8, 3...12), (9, 3...12)
+        ]
+        for (y, range) in innerRows {
+            for x in range { cell(x, y, inside) }
+        }
+
+        // Bright terminal-like eyes; the alternating row gives a tiny idle blink/pulse.
+        let eyeY = phase ? 4 : 5
+        for x in 4...5 { cell(x, eyeY, glow) }
+        for x in 10...11 { cell(x, eyeY, glow) }
+
+        // Small >_ prompt on the lower face/body.
+        for (x, y) in [(6, 7), (7, 8), (6, 9), (9, 9), (10, 9)] {
+            cell(x, y, glow)
+        }
+    }
+}
+
 final class TerminalWindow: NSWindow {
     let terminal: HafthiTerminalView
     let ghostInbox: URL
@@ -85,8 +153,7 @@ final class TerminalWindow: NSWindow {
     private var drawerHeight: NSLayoutConstraint!
     private var drawerOpen = false
     private let imageView = CroppedImageView(frame: .zero)
-    private let ghostBadge = NSView(frame: .zero)
-    private let ghostLabel = NSTextField(labelWithString: "{ö}")
+    private let ghostBadge = GhostIndicatorControl(frame: .zero)
     private var imageBottomConstraint: NSLayoutConstraint!
     private var imageHeightConstraint: NSLayoutConstraint!
     private var imageTrailingConstraint: NSLayoutConstraint!
@@ -152,25 +219,17 @@ final class TerminalWindow: NSWindow {
         NSLayoutConstraint.activate(edgeConstraints + [topConstraint])
 
         ghostBadge.translatesAutoresizingMaskIntoConstraints = false
-        ghostBadge.wantsLayer = true
-        ghostBadge.layer?.backgroundColor = NSColor(calibratedRed: 0.055, green: 0.075, blue: 0.09, alpha: 0.96).cgColor
-        ghostBadge.layer?.borderColor = NSColor(calibratedRed: 0.20, green: 0.54, blue: 0.64, alpha: 1).cgColor
-        ghostBadge.layer?.borderWidth = 1
-        ghostBadge.layer?.cornerRadius = 10
         ghostBadge.isHidden = true
+        ghostBadge.target = self
+        ghostBadge.action = #selector(toggleGhostFromIndicator(_:))
+        ghostBadge.toolTip = "Open Ghost Tasks — Ctrl+G"
+        ghostBadge.setAccessibilityLabel("Open Ghost Tasks")
         contentView.addSubview(ghostBadge)
-        ghostLabel.translatesAutoresizingMaskIntoConstraints = false
-        ghostLabel.font = .monospacedSystemFont(ofSize: 24, weight: .bold)
-        ghostLabel.textColor = NSColor(calibratedRed: 0.47, green: 0.86, blue: 0.95, alpha: 1)
-        ghostLabel.alignment = .center
-        ghostBadge.addSubview(ghostLabel)
         NSLayoutConstraint.activate([
-            ghostBadge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
-            ghostBadge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 14),
-            ghostBadge.widthAnchor.constraint(equalToConstant: 92),
-            ghostBadge.heightAnchor.constraint(equalToConstant: 42),
-            ghostLabel.centerXAnchor.constraint(equalTo: ghostBadge.centerXAnchor),
-            ghostLabel.centerYAnchor.constraint(equalTo: ghostBadge.centerYAnchor)
+            ghostBadge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            ghostBadge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            ghostBadge.widthAnchor.constraint(equalToConstant: 42),
+            ghostBadge.heightAnchor.constraint(equalToConstant: 42)
         ])
 
         ghostDrawer.translatesAutoresizingMaskIntoConstraints = false
@@ -202,7 +261,11 @@ final class TerminalWindow: NSWindow {
 
     func showGhostFrame(_ frame: String?) {
         ghostBadge.isHidden = frame == nil
-        if let frame { ghostLabel.stringValue = frame }
+        ghostBadge.phase = frame == "{ö}"
+    }
+
+    @objc private func toggleGhostFromIndicator(_ sender: Any?) {
+        _ = toggleGhostDrawer()
     }
 
     @discardableResult
