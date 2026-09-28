@@ -73,7 +73,7 @@ final class CroppedImageView: NSView {
     }
 }
 
-final class GhostIndicatorControl: NSControl {
+final class GhostIndicatorControl: NSButton {
     var phase = false {
         didSet { needsDisplay = true }
     }
@@ -148,6 +148,7 @@ final class TerminalWindow: NSWindow {
     private(set) var ghostTaskID: String?
     private var ghostTaskDirectory: URL?
     private var ghostRunning = false
+    var hasRunningGhost: Bool { ghostRunning }
     private let ghostDrawer = NSView(frame: .zero)
     private let drawerTitle = NSTextField(labelWithString: "Ghost Task · Ctrl+G to return")
     private var drawerHeight: NSLayoutConstraint!
@@ -219,6 +220,9 @@ final class TerminalWindow: NSWindow {
         NSLayoutConstraint.activate(edgeConstraints + [topConstraint])
 
         ghostBadge.translatesAutoresizingMaskIntoConstraints = false
+        ghostBadge.isBordered = false
+        ghostBadge.title = ""
+        ghostBadge.setButtonType(.momentaryPushIn)
         ghostBadge.isHidden = true
         ghostBadge.target = self
         ghostBadge.action = #selector(toggleGhostFromIndicator(_:))
@@ -241,6 +245,7 @@ final class TerminalWindow: NSWindow {
         ghostDrawer.layer?.masksToBounds = true
         ghostDrawer.isHidden = true
         contentView.addSubview(ghostDrawer)
+        contentView.addSubview(ghostBadge, positioned: .above, relativeTo: ghostDrawer)
         drawerHeight = ghostDrawer.heightAnchor.constraint(equalToConstant: 0)
         NSLayoutConstraint.activate([
             ghostDrawer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 9),
@@ -266,6 +271,26 @@ final class TerminalWindow: NSWindow {
 
     @objc private func toggleGhostFromIndicator(_ sender: Any?) {
         _ = toggleGhostDrawer()
+    }
+
+    // Exercise the packaged app's actual button action and view hit testing in CI.
+    func verifyGhostIndicatorInteraction() -> Bool {
+        guard let contentView else { return false }
+        showGhostFrame("{ö}")
+        contentView.layoutSubtreeIfNeeded()
+        let point = ghostBadge.convert(NSPoint(x: 21, y: 21), to: contentView)
+        guard contentView.hitTest(point) === ghostBadge else { return false }
+
+        ghostDrawer.isHidden = false
+        drawerHeight.constant = 200
+        contentView.layoutSubtreeIfNeeded()
+        guard contentView.hitTest(point) === ghostBadge else { return false }
+
+        ghostTerminal = terminal
+        ghostBadge.performClick(nil)
+        guard drawerOpen else { return false }
+        ghostBadge.performClick(nil)
+        return !drawerOpen
     }
 
     @discardableResult
@@ -497,10 +522,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
 
     private func updateGhostIndicators() {
         guard !windows.isEmpty else { return }
-        let active = GhostStatus.hasRunningTask()
+        let active = windows.values.contains { $0.hasRunningGhost }
         if active { ghostPhase.toggle() } else { ghostPhase = false }
         let frame: String? = active ? (ghostPhase ? "{ö}" : "{-}") : nil
-        for window in windows.values { window.showGhostFrame(frame) }
+        for window in windows.values {
+            window.showGhostFrame(window.hasRunningGhost ? frame : nil)
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
@@ -874,6 +901,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
 
 CommandHelp.handleIfRequested()
 let app = NSApplication.shared
+if CommandLine.arguments.dropFirst().first == "--verify-ghost-indicator" {
+    app.setActivationPolicy(.prohibited)
+    let window = TerminalWindow(settings: MacSettings.load(), owner: AppDelegate())
+    guard window.verifyGhostIndicatorInteraction() else {
+        fatalError("Ghost indicator cannot receive and toggle clicks")
+    }
+    window.close()
+    exit(0)
+}
 private let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.regular)

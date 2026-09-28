@@ -19,6 +19,8 @@ jobs:
         run: |
           lipo build/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64
           codesign --verify --deep --strict build/Hafþi.app
+      - name: Verify Ghost indicator click and hit target
+        run: build/Hafþi.app/Contents/MacOS/Hafthi --verify-ghost-indicator
       - name: Verify bundled Sampler dashboard
         run: |
           swift -e 'import Foundation; guard let bundle = Bundle(path: FileManager.default.currentDirectoryPath + "/build/Hafþi.app"), let url = bundle.url(forResource: "SamplerDefault", withExtension: "yml"), let data = try? Data(contentsOf: url), !data.isEmpty else { fatalError("Sampler config is not readable from Hafþi.app") }'

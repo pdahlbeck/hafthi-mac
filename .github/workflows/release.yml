@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 env:
-  VERSION: 0.1.0-beta.26
+  VERSION: 0.1.0-beta.27
 
 jobs:
   release:
@@ -22,6 +22,7 @@ jobs:
           test "$(uname -m)" = arm64
           bash build-app.sh
           lipo build/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64
+          build/Hafþi.app/Contents/MacOS/Hafthi --verify-ghost-indicator
       - name: Sign and package app
         run: |
           codesign --force --deep --sign - build/Hafþi.app
