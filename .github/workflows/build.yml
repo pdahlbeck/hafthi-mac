@@ -18,3 +18,10 @@ jobs:
       - name: Verify bundled Sampler dashboard
         run: |
           swift -e 'import Foundation; guard let bundle = Bundle(path: FileManager.default.currentDirectoryPath + "/build/Hafþi.app"), let url = bundle.url(forResource: "SamplerDefault", withExtension: "yml"), let data = try? Data(contentsOf: url), !data.isEmpty else { fatalError("Sampler config is not readable from Hafþi.app") }'
+      - name: Package test app
+        run: ditto -c -k --keepParent "build/Hafþi.app" "Hafthi-macOS-test.zip"
+      - name: Upload test app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hafthi-macOS-test
+          path: Hafthi-macOS-test.zip
