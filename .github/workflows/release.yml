@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 env:
-  VERSION: 0.1.0-beta.25
+  VERSION: 0.1.0-beta.26
 
 jobs:
   release:
@@ -28,6 +28,10 @@ jobs:
           codesign --verify --deep --strict build/Hafþi.app
           artifact="Hafthi-${VERSION}-macOS-arm64.zip"
           ditto -c -k --keepParent build/Hafþi.app "$artifact"
+          mkdir -p build/release-check
+          ditto -x -k "$artifact" build/release-check
+          lipo build/release-check/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64
+          codesign --verify --deep --strict build/release-check/Hafþi.app
           shasum -a 256 "$artifact" > "${artifact}.sha256"
       - name: Publish GitHub release
         env:
