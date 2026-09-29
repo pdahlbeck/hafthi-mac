@@ -800,6 +800,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 terminal.send(source: terminal, data: Array("brew install fish".utf8)[...])
                 terminal.window?.makeKeyAndOrderFront(nil)
             }
+            controller.onInstallHomebrew = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                // Outer single quotes work in both Fish and Zsh. Bash then runs
+                // Homebrew's published installer command and asks for consent.
+                let command = "/bin/bash -c '/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"'"
+                terminal.send(source: terminal, data: Array(command.utf8)[...])
+                terminal.window?.makeKeyAndOrderFront(nil)
+            }
             controller.onOpenSampler = { [weak self] in self?.openSampler(nil) }
             controller.onInstallSampler = { [weak self] in
                 guard let terminal = self?.activeTerminal else { return }

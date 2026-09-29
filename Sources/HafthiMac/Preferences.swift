@@ -136,6 +136,7 @@ final class PreferencesWindow: NSWindowController {
     var onOpenMicro: (() -> Void)?
     var onInstallMicro: (() -> Void)?
     var onInstallFish: (() -> Void)?
+    var onInstallHomebrew: (() -> Void)?
     private let fontValue = NSTextField(labelWithString: "")
     private let opacityValue = NSTextField(labelWithString: "")
     private let paddingValue = NSTextField(labelWithString: "")
@@ -309,8 +310,12 @@ final class PreferencesWindow: NSWindowController {
             ? "Homebrew is not installed. Open the official installer, then return here."
             : "Homebrew is installed and available in Hafþi."
         stack.addArrangedSubview(detail(brewStatus))
-        let brew = NSButton(title: "Get Homebrew…", target: self, action: #selector(openHomebrew(_:)))
-        stack.addArrangedSubview(brew)
+        if OptionalToolSupport.installedExecutable(named: "brew") == nil {
+            stack.addArrangedSubview(NSButton(title: "Install Homebrew…", target: self,
+                                              action: #selector(installHomebrew(_:))))
+        }
+        stack.addArrangedSubview(NSButton(title: "Homebrew website…", target: self,
+                                          action: #selector(openHomebrew(_:))))
 
         let padding = slider(value: settings.padding, min: 0, max: 50, action: #selector(changePadding(_:)))
         paddingValue.stringValue = "\(Int(settings.padding)) px"
@@ -675,6 +680,8 @@ final class PreferencesWindow: NSWindowController {
     @objc private func openHomebrew(_ sender: Any?) {
         NSWorkspace.shared.open(URL(string: "https://brew.sh/")!)
     }
+
+    @objc private func installHomebrew(_ sender: Any?) { onInstallHomebrew?() }
 
     @objc private func installFish(_ sender: Any?) { onInstallFish?() }
 
