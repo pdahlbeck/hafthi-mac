@@ -1,22 +1,36 @@
-name: Publish Hafþi beta
+name: Publish Hafþi Mac
 
 on:
-  workflow_dispatch:
   push:
-    branches: [main]
-    paths: [.github/workflows/release.yml]
+    tags: ["v[0-9]*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag (for example v0.1.0-beta.28)
+        required: true
+        type: string
 
 permissions:
   contents: write
 
-env:
-  VERSION: 0.1.0-beta.27
+concurrency:
+  group: hafthi-mac-release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: macos-15
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      - name: Validate version tag
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          echo "VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
       - name: Build Apple Silicon app
         run: |
           test "$(uname -m)" = arm64
@@ -25,7 +39,6 @@ jobs:
           build/Hafþi.app/Contents/MacOS/Hafthi --verify-ghost-indicator
       - name: Sign and package app
         run: |
-          codesign --force --deep --sign - build/Hafþi.app
           codesign --verify --deep --strict build/Hafþi.app
           artifact="Hafthi-${VERSION}-macOS-arm64.zip"
           ditto -c -k --keepParent build/Hafþi.app "$artifact"
@@ -34,15 +47,33 @@ jobs:
           lipo build/release-check/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64
           codesign --verify --deep --strict build/release-check/Hafþi.app
           shasum -a 256 "$artifact" > "${artifact}.sha256"
+          python3 scripts/update-cask.py "$VERSION" "$artifact"
+          ruby -c Casks/hafthi.rb
+          git restore Casks/hafthi.rb
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           artifact="Hafthi-${VERSION}-macOS-arm64.zip"
-          gh release create "v${VERSION}" \
+          release_flags=()
+          if [[ "$VERSION" == *-* ]]; then release_flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" \
             "$artifact" \
             "${artifact}.sha256" \
-            --target "$GITHUB_SHA" \
             --title "Hafþi ${VERSION}" \
-            --notes-file RELEASE_NOTES.md \
-            --prerelease
+            --generate-notes \
+            "${release_flags[@]}"
+      - name: Update Homebrew Cask on main
+        run: |
+          git fetch origin main
+          git switch -C cask-update origin/main
+          artifact="Hafthi-${VERSION}-macOS-arm64.zip"
+          python3 scripts/update-cask.py "$VERSION" "$artifact"
+          ruby -c Casks/hafthi.rb
+          git add Casks/hafthi.rb
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' \
+                -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                commit -m "Update Homebrew Cask for ${RELEASE_TAG}"
+            git push origin HEAD:main
+          fi
