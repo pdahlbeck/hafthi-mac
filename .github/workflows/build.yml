@@ -19,7 +19,11 @@ jobs:
         run: |
           ruby -c Casks/hafthi.rb
           python3 -m py_compile scripts/update-cask.py
-          brew info --cask Casks/hafthi.rb
+          brew tap-new pdahlbeck/hafthi-mac
+          tap_dir="$(brew --repo pdahlbeck/hafthi-mac)"
+          mkdir -p "$tap_dir/Casks"
+          cp Casks/hafthi.rb "$tap_dir/Casks/hafthi.rb"
+          brew info --cask pdahlbeck/hafthi-mac/hafthi
       - name: Verify Apple Silicon app signature
         run: |
           lipo build/Hafþi.app/Contents/MacOS/Hafthi -verify_arch arm64

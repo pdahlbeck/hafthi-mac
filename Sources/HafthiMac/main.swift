@@ -903,7 +903,8 @@ CommandHelp.handleIfRequested()
 let app = NSApplication.shared
 if CommandLine.arguments.dropFirst().first == "--verify-ghost-indicator" {
     app.setActivationPolicy(.prohibited)
-    let window = TerminalWindow(settings: MacSettings.load(), owner: AppDelegate())
+    let testOwner = AppDelegate()
+    let window = TerminalWindow(settings: MacSettings.load(), owner: testOwner)
     guard window.verifyGhostIndicatorInteraction() else {
         fatalError("Ghost indicator cannot receive and toggle clicks")
     }
