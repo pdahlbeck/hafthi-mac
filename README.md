@@ -9,6 +9,19 @@ Download [Hafþi 0.1.0 beta 27 for Apple Silicon](https://github.com/pdahlbeck/h
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
+### Install with Homebrew
+
+The [Hafþi Cask](Casks/hafthi.rb) downloads the ready-made Apple Silicon app from GitHub Releases; Homebrew does not compile Swift. Add this repository as a tap, then install the Cask:
+
+```sh
+brew tap pdahlbeck/hafthi-mac https://github.com/pdahlbeck/hafthi-mac.git
+brew install --cask pdahlbeck/hafthi-mac/hafthi
+```
+
+For a later release, run `brew update` and `brew upgrade --cask pdahlbeck/hafthi-mac/hafthi`. The app requires macOS 13 or later on Apple Silicon. It is ad hoc signed, so the first launch may still need **Open Anyway** as described above.
+
+Maintainers publish a new version by pushing a tag such as `v0.1.0-beta.28`. The release workflow builds and verifies the app, creates the ZIP and SHA-256 file, publishes the GitHub release, and updates `Casks/hafthi.rb` on `main` using the checksum of that exact ZIP. The workflow can also be started manually for an existing tag.
+
 ## Features
 
 | Area | What the Mac app does |
