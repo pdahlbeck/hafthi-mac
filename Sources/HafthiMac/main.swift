@@ -532,11 +532,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    private static func preferredShell(useFish: Bool) -> String {
+    private static func preferredShell(settings: MacSettings) -> String {
+        if settings.shellChoice == "zsh" { return "/bin/zsh" }
         let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
         let candidates = ["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/opt/local/bin/fish"]
             + path.split(separator: ":").map { "\($0)/fish" }
-        if useFish, let fish = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
+        if (settings.shellChoice == "fish" ||
+            (settings.shellChoice != "zsh" && settings.useFish != false)),
+           let fish = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
             return fish
         }
         if let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell {
@@ -577,7 +580,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
 
     @objc func openWindow(_ sender: Any?) {
         let terminal = makeTerminalWindow()
-        let shell = Self.preferredShell(useFish: settings.useFish != false)
+        let shell = Self.preferredShell(settings: settings)
         var args = ["-l"]
         if URL(fileURLWithPath: shell).lastPathComponent == "fish" {
             var commands: [String] = []
@@ -792,6 +795,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 guard let terminal = self?.activeTerminal else { return }
                 terminal.send(source: terminal, data: Array("brew install tgpt".utf8)[...])
             }
+            controller.onInstallFish = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                terminal.send(source: terminal, data: Array("brew install fish".utf8)[...])
+                terminal.window?.makeKeyAndOrderFront(nil)
+            }
+            controller.onInstallHomebrew = { [weak self] in
+                guard let terminal = self?.activeTerminal else { return }
+                // Outer single quotes work in both Fish and Zsh. Bash then runs
+                // Homebrew's published installer command and asks for consent.
+                let command = "/bin/bash -c '/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"'"
+                terminal.send(source: terminal, data: Array(command.utf8)[...])
+                terminal.window?.makeKeyAndOrderFront(nil)
+            }
             controller.onOpenSampler = { [weak self] in self?.openSampler(nil) }
             controller.onInstallSampler = { [weak self] in
                 guard let terminal = self?.activeTerminal else { return }
@@ -809,6 +825,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             }
             preferences = controller
         }
+        preferences?.refresh(settings)
         preferences?.showWindow(nil)
         preferences?.window?.makeKeyAndOrderFront(nil)
     }

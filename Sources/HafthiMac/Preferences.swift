@@ -20,6 +20,8 @@ struct MacSettings: Codable {
     var useSampler: Bool? = nil
     var useYazi: Bool? = nil
     var useMicro: Bool? = nil
+    // nil preserves the shell selection used by earlier settings files.
+    var shellChoice: String? = nil // automatic, fish, zsh
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -133,6 +135,8 @@ final class PreferencesWindow: NSWindowController {
     var onInstallYazi: (() -> Void)?
     var onOpenMicro: (() -> Void)?
     var onInstallMicro: (() -> Void)?
+    var onInstallFish: (() -> Void)?
+    var onInstallHomebrew: (() -> Void)?
     private let fontValue = NSTextField(labelWithString: "")
     private let opacityValue = NSTextField(labelWithString: "")
     private let paddingValue = NSTextField(labelWithString: "")
@@ -262,7 +266,9 @@ final class PreferencesWindow: NSWindowController {
         guard let plugin = Plugin(rawValue: sender.tag) else { return }
         let enabled = sender.state == .on
         switch plugin {
-        case .fish: settings.useFish = enabled
+        case .fish:
+            settings.useFish = enabled
+            settings.shellChoice = "automatic"
         case .starship: settings.useStarship = enabled
         case .tgpt: settings.commandHelpEnabled = enabled
         case .sampler: settings.useSampler = enabled
@@ -294,6 +300,23 @@ final class PreferencesWindow: NSWindowController {
     }
 
     private func buildTerminal(in stack: NSStackView) {
+        let shells = NSSegmentedControl(labels: ["Automatic", "Fish", "Zsh"], trackingMode: .selectOne,
+                                        target: self, action: #selector(changeShell(_:)))
+        shells.selectedSegment = ["automatic", "fish", "zsh"].firstIndex(of: settings.shellChoice ?? "automatic") ?? 0
+        stack.addArrangedSubview(row("New windows", shells, nil))
+        stack.addArrangedSubview(detail("Automatic uses Fish when it is enabled and installed; otherwise it uses your login shell. Zsh is included with macOS. New windows use your selection."))
+
+        let brewStatus = OptionalToolSupport.installedExecutable(named: "brew") == nil
+            ? "Homebrew is not installed. Open the official installer, then return here."
+            : "Homebrew is installed and available in Hafþi."
+        stack.addArrangedSubview(detail(brewStatus))
+        if OptionalToolSupport.installedExecutable(named: "brew") == nil {
+            stack.addArrangedSubview(NSButton(title: "Install Homebrew…", target: self,
+                                              action: #selector(installHomebrew(_:))))
+        }
+        stack.addArrangedSubview(NSButton(title: "Homebrew website…", target: self,
+                                          action: #selector(openHomebrew(_:))))
+
         let padding = slider(value: settings.padding, min: 0, max: 50, action: #selector(changePadding(_:)))
         paddingValue.stringValue = "\(Int(settings.padding)) px"
         stack.addArrangedSubview(row("Padding", padding, paddingValue))
@@ -414,7 +437,8 @@ final class PreferencesWindow: NSWindowController {
 
     private func pluginEnabled(_ plugin: Plugin) -> Bool {
         switch plugin {
-        case .fish: return settings.useFish != false
+        case .fish: return settings.shellChoice == "fish" ||
+            (settings.shellChoice != "zsh" && settings.useFish != false)
         case .starship: return settings.useStarship != false
         case .tgpt: return settings.commandHelpEnabled
         case .sampler: return settings.useSampler == true
@@ -424,11 +448,16 @@ final class PreferencesWindow: NSWindowController {
     }
 
     private func buildFishSettings(in stack: NSStackView) {
-        stack.addArrangedSubview(detail("When enabled, new windows use Fish if it is installed. When disabled, they use your login shell."))
-        stack.addArrangedSubview(detail("Install it yourself with brew install fish."))
+        stack.addArrangedSubview(detail("Automatic uses Fish when enabled and installed. You can also choose Fish or Zsh explicitly in Terminal settings."))
+        stack.addArrangedSubview(detail(OptionalToolSupport.installedExecutable(named: "fish") == nil
+            ? "Fish is not installed. Install Homebrew first, then use the button below."
+            : "Fish is installed and ready for new windows."))
+        let install = NSButton(title: "Install Fish…", target: self, action: #selector(installFish(_:)))
+        install.isEnabled = OptionalToolSupport.installedExecutable(named: "brew") != nil
+        stack.addArrangedSubview(install)
         let fish = NSButton(checkboxWithTitle: "Use Fish in new windows when installed",
                             target: self, action: #selector(toggleFish(_:)))
-        fish.state = settings.useFish != false ? .on : .off
+        fish.state = pluginEnabled(.fish) ? .on : .off
         stack.addArrangedSubview(fish)
         let greeting = NSButton(checkboxWithTitle: "Show fish welcome message in new windows",
                                 target: self, action: #selector(toggleFishGreeting(_:)))
@@ -638,8 +667,23 @@ final class PreferencesWindow: NSWindowController {
 
     @objc private func toggleFish(_ sender: NSButton) {
         settings.useFish = sender.state == .on
+        settings.shellChoice = "automatic"
+        refresh(settings)
         changed()
     }
+
+    @objc private func changeShell(_ sender: NSSegmentedControl) {
+        settings.shellChoice = ["automatic", "fish", "zsh"][sender.selectedSegment]
+        changed()
+    }
+
+    @objc private func openHomebrew(_ sender: Any?) {
+        NSWorkspace.shared.open(URL(string: "https://brew.sh/")!)
+    }
+
+    @objc private func installHomebrew(_ sender: Any?) { onInstallHomebrew?() }
+
+    @objc private func installFish(_ sender: Any?) { onInstallFish?() }
 
     @objc private func toggleStarship(_ sender: NSButton) {
         settings.useStarship = sender.state == .on

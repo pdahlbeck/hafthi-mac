@@ -2,7 +2,8 @@ import Foundation
 
 enum OptionalToolSupport {
     static var executableSearchPath: String {
-        let standard = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin",
+        let standard = ["/opt/homebrew/bin", "/opt/homebrew/sbin",
+                        "/usr/local/bin", "/usr/local/sbin", "/opt/local/bin",
                         "\(NSHomeDirectory())/go/bin", "\(NSHomeDirectory())/.local/bin",
                         "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
         let inherited = (ProcessInfo.processInfo.environment["PATH"] ?? "")
