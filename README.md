@@ -5,7 +5,7 @@ A native macOS version of [Hafþi for Linux](https://github.com/pdahlbeck/hafthi
 
 ## Download
 
-Download [Hafþi 0.1.0 beta 27 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.27). Unzip `Hafthi-0.1.0-beta.27-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
+Download [Hafþi 0.1.0 beta 28 for Apple Silicon](https://github.com/pdahlbeck/hafthi-mac/releases/tag/v0.1.0-beta.28). Unzip `Hafthi-0.1.0-beta.28-macOS-arm64.zip` and drag `Hafþi.app` to Applications. It requires macOS 13 or later. You do **not** need Xcode or build tools to run the download.
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
@@ -20,7 +20,7 @@ brew install --cask pdahlbeck/hafthi-mac/hafthi
 
 For a later release, run `brew update` and `brew upgrade --cask pdahlbeck/hafthi-mac/hafthi`. The app requires macOS 13 or later on Apple Silicon. It is ad hoc signed, so the first launch may still need **Open Anyway** as described above.
 
-Maintainers publish a new version by pushing a tag such as `v0.1.0-beta.28`. The release workflow builds and verifies the app, creates the ZIP and SHA-256 file, publishes the GitHub release, and updates `Casks/hafthi.rb` on `main` using the checksum of that exact ZIP. The workflow can also be started manually for an existing tag.
+Maintainers publish a new version by pushing a tag such as `v0.1.0-beta.29`. The release workflow builds and verifies the app, creates the ZIP and SHA-256 file, publishes the GitHub release, and updates `Casks/hafthi.rb` on `main` using the checksum of that exact ZIP. It also adds the assets when a release was created from GitHub's web UI, and can be started manually for an existing tag.
 
 ## Features
 

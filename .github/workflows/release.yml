@@ -57,12 +57,18 @@ jobs:
           artifact="Hafthi-${VERSION}-macOS-arm64.zip"
           release_flags=()
           if [[ "$VERSION" == *-* ]]; then release_flags+=(--prerelease); fi
-          gh release create "$RELEASE_TAG" \
-            "$artifact" \
-            "${artifact}.sha256" \
-            --title "Hafþi ${VERSION}" \
-            --generate-notes \
-            "${release_flags[@]}"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            # GitHub's web UI creates the tag and release together. Finish its
+            # assets here, and allow a failed job to be safely rerun.
+            gh release upload "$RELEASE_TAG" "$artifact" "${artifact}.sha256" --clobber
+          else
+            gh release create "$RELEASE_TAG" \
+              "$artifact" \
+              "${artifact}.sha256" \
+              --title "Hafþi ${VERSION}" \
+              --generate-notes \
+              "${release_flags[@]}"
+          fi
       - name: Update Homebrew Cask on main
         run: |
           git fetch origin main
