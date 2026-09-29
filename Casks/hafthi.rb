@@ -1,6 +1,6 @@
 cask "hafthi" do
-  version "0.1.0-beta.27"
-  sha256 "52d9f6f0310f4114ffd3f835592e8d3451a8c07adc99e146b7382ecf3ce66e09"
+  version "0.1.0-beta.28"
+  sha256 "5bb8f1fffd3fe2235932296fbba68dc329d8b566a4a684d3919fc80bbeefc9b0"
 
   url "https://github.com/pdahlbeck/hafthi-mac/releases/download/v#{version}/Hafthi-#{version}-macOS-arm64.zip"
   name "Hafþi"
