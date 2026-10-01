@@ -9,6 +9,8 @@ Download [Hafþi 0.1.0 beta 28 for Apple Silicon](https://github.com/pdahlbeck/h
 
 The beta is ad hoc signed, but not notarized with an Apple Developer ID. If macOS blocks the first launch, try opening the app, then choose **System Settings → Privacy & Security → Open Anyway** for Hafþi. You do not need to disable Gatekeeper for the whole Mac.
 
+The new Homebrew integration is available on `main`; the beta 28 release above predates this addition. To try the current app, open the [macOS builds for main](https://github.com/pdahlbeck/hafthi-mac/actions/workflows/build.yml?query=branch%3Amain), choose the latest successful run, and download **Hafthi-macOS-test** under Artifacts while signed in to GitHub. Unzip the downloaded archive, then its app ZIP, and drag `Hafþi.app` to Applications.
+
 ### Install with Homebrew
 
 The [Hafþi Cask](Casks/hafthi.rb) downloads the ready-made Apple Silicon app from GitHub Releases; Homebrew does not compile Swift. Add this repository as a tap, then install the Cask:
@@ -22,6 +24,10 @@ For a later release, run `brew update` and `brew upgrade --cask pdahlbeck/hafthi
 
 Maintainers publish a new version by pushing a tag such as `v0.1.0-beta.29`. The release workflow builds and verifies the app, creates the ZIP and SHA-256 file, publishes the GitHub release, and updates `Casks/hafthi.rb` on `main` using the checksum of that exact ZIP. It also adds the assets when a release was created from GitHub's web UI, and can be started manually for an existing tag.
 
+## Recently added on main
+
+- **Homebrew integration:** Preferences → Integrations → Homebrew shows whether Brew is installed and links to its website and GitHub project. **Install Homebrew…** opens the official interactive installer in a dedicated Hafþi window, independent of Fish or Zsh. Its result stays visible until Enter; the install button is disabled when Brew is already available.
+
 ## Features
 
 | Area | What the Mac app does |
@@ -31,6 +37,7 @@ Maintainers publish a new version by pushing a tag such as `v0.1.0-beta.29`. The
 | Appearance | Configurable font family and size, text/background/cursor colors, background opacity, terminal padding and scrollback length. Changes to these settings apply to open windows. |
 | Images | Optional PNG, JPEG, WebP or animated GIF background, with **Off**, **Banner** and **Full image** modes. Banner keeps the image above the terminal text; Full image fills the window behind it. |
 | Shell and prompt | Choose Automatic, Fish or Zsh in Preferences → Terminal. Automatic uses Fish when installed and enabled, otherwise your login shell. Fish's startup message is hidden by default in Hafþi. Starship can be enabled automatically for Fish when installed. |
+| Package manager | Homebrew installation status, official installer in a dedicated terminal window, and website/GitHub links under Preferences → Integrations. |
 | Command help | Optional tgpt integration in Preferences and the right-click menu. The question goes to tgpt's online provider; suggested shell commands are displayed, not executed. |
 | Ghost Tasks | Prefix a command with `ghost` (or `g`) to run it in a background PTY; open its drawer with Control + G when it needs input. Check status with `g jobs` and read captured output with `g log ID`. |
 | Live dashboards | Optional Sampler integration opens a dedicated terminal window with a bundled example dashboard. Sampler itself is installed separately. |
