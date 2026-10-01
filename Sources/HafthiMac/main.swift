@@ -657,6 +657,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                               currentDirectory: FileManager.default.currentDirectoryPath)
     }
 
+    private func installHomebrew() {
+        guard OptionalToolSupport.installedExecutable(named: "brew") == nil else {
+            preferences?.refresh(settings)
+            return
+        }
+        let terminal = makeTerminalWindow()
+        terminal.window?.title = "Install Homebrew — Hafþi"
+        var environment = Terminal.getEnvironmentVariables(termName: "xterm-256color")
+        environment.removeAll { $0.hasPrefix("PATH=") || $0.hasPrefix("NONINTERACTIVE=") || $0.hasPrefix("CI=") }
+        environment.append("PATH=\(OptionalToolSupport.executableSearchPath)")
+        let command = """
+        installer=$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)
+        result=$?
+        if [ "$result" -eq 0 ]; then
+            /bin/bash -c "$installer"
+            result=$?
+        fi
+        printf '\nHomebrew installer finished (exit %s). Press Enter to close this window.\n' "$result"
+        IFS= read -r answer
+        exit "$result"
+        """
+        terminal.startProcess(executable: "/bin/bash", args: ["-c", command],
+                              environment: environment, currentDirectory: NSHomeDirectory())
+    }
+
     @objc private func openSampler(_ sender: Any?) {
         guard settings.useSampler == true else { return }
         guard let executable = SamplerSupport.installedExecutable else {
@@ -737,6 +762,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
             window.finishGhost(exitCode: exitCode)
             return
         }
+        preferences?.refresh(settings)
         // LocalProcess calls this delegate before childStopped(). Closing here
         // tears down the terminal while SwiftTerm is still on its callback stack.
         DispatchQueue.main.async { [weak window] in
@@ -800,14 +826,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Loca
                 terminal.send(source: terminal, data: Array("brew install fish".utf8)[...])
                 terminal.window?.makeKeyAndOrderFront(nil)
             }
-            controller.onInstallHomebrew = { [weak self] in
-                guard let terminal = self?.activeTerminal else { return }
-                // Outer single quotes work in both Fish and Zsh. Bash then runs
-                // Homebrew's published installer command and asks for consent.
-                let command = "/bin/bash -c '/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"'"
-                terminal.send(source: terminal, data: Array(command.utf8)[...])
-                terminal.window?.makeKeyAndOrderFront(nil)
-            }
+            controller.onInstallHomebrew = { [weak self] in self?.installHomebrew() }
             controller.onOpenSampler = { [weak self] in self?.openSampler(nil) }
             controller.onInstallSampler = { [weak self] in
                 guard let terminal = self?.activeTerminal else { return }
