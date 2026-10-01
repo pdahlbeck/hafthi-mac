@@ -61,6 +61,10 @@ extension NSColor {
     }
 }
 
+private final class IntegrationDocumentView: NSView {
+    override var isFlipped: Bool { true }
+}
+
 final class PreferencesWindow: NSWindowController {
     private enum Page: Int, CaseIterable {
         case appearance, terminal, background, plugins
@@ -76,10 +80,11 @@ final class PreferencesWindow: NSWindowController {
     }
 
     private enum Plugin: Int, CaseIterable {
-        case fish, starship, tgpt, sampler, yazi, micro
+        case homebrew, fish, starship, tgpt, sampler, yazi, micro
 
         var title: String {
             switch self {
+            case .homebrew: return "Homebrew"
             case .fish: return "Fish"
             case .starship: return "Starship"
             case .tgpt: return "tgpt"
@@ -91,6 +96,7 @@ final class PreferencesWindow: NSWindowController {
 
         var symbol: String {
             switch self {
+            case .homebrew: return "shippingbox"
             case .fish: return "terminal"
             case .starship: return "sparkles"
             case .tgpt: return "questionmark.bubble"
@@ -102,6 +108,7 @@ final class PreferencesWindow: NSWindowController {
 
         var subtitle: String {
             switch self {
+            case .homebrew: return "Packages · " + (OptionalToolSupport.installedExecutable(named: "brew") == nil ? "Not installed" : "Installed")
             case .fish: return "Shell · greeting and startup"
             case .starship: return "Prompt · Fish integration"
             case .tgpt: return "Command help · questions and installation"
@@ -113,6 +120,7 @@ final class PreferencesWindow: NSWindowController {
 
         var githubURL: String {
             switch self {
+            case .homebrew: return "https://github.com/Homebrew/brew"
             case .fish: return "https://github.com/fish-shell/fish-shell"
             case .starship: return "https://github.com/starship/starship"
             case .tgpt: return "https://github.com/aandrew-me/tgpt"
@@ -126,6 +134,8 @@ final class PreferencesWindow: NSWindowController {
     private var settings: MacSettings
     private var selectedPage: Page = .appearance
     private var selectedPlugin: Plugin?
+    private var integrationScroll: NSScrollView?
+    private var integrationScrollOffset: CGFloat = 0
     var onChange: ((MacSettings) -> Void)?
     var onAsk: ((String) -> Void)?
     var onInstall: (() -> Void)?
@@ -160,6 +170,10 @@ final class PreferencesWindow: NSWindowController {
 
     func refresh(_ settings: MacSettings) {
         self.settings = settings
+        if let scroll = integrationScroll {
+            integrationScrollOffset = scroll.contentView.bounds.minY
+        }
+        integrationScroll = nil
         window?.contentView?.subviews.forEach { $0.removeFromSuperview() }
         if let window { buildControls(in: window) }
     }
@@ -266,6 +280,7 @@ final class PreferencesWindow: NSWindowController {
         guard let plugin = Plugin(rawValue: sender.tag) else { return }
         let enabled = sender.state == .on
         switch plugin {
+        case .homebrew: return
         case .fish:
             settings.useFish = enabled
             settings.shellChoice = "automatic"
@@ -345,13 +360,39 @@ final class PreferencesWindow: NSWindowController {
             let description = detail("Optional tools for your shell, prompt, command help, dashboards, files, and editing. Install each tool yourself with Homebrew; their settings and GitHub links are in the cards below.")
             stack.addArrangedSubview(description)
             stack.setCustomSpacing(18, after: description)
-            for plugin in Plugin.allCases {
-                stack.addArrangedSubview(pluginCard(plugin))
-            }
+            let scroll = NSScrollView()
+            scroll.hasVerticalScroller = true
+            scroll.autohidesScrollers = true
+            scroll.drawsBackground = false
+            scroll.translatesAutoresizingMaskIntoConstraints = false
+            let document = IntegrationDocumentView(frame: NSRect(x: 0, y: 0, width: 500,
+                height: CGFloat(Plugin.allCases.count * 95 - 11)))
+            let cards = NSStackView()
+            cards.orientation = .vertical
+            cards.alignment = .leading
+            cards.spacing = 11
+            cards.translatesAutoresizingMaskIntoConstraints = false
+            document.addSubview(cards)
+            for plugin in Plugin.allCases { cards.addArrangedSubview(pluginCard(plugin)) }
+            NSLayoutConstraint.activate([
+                cards.topAnchor.constraint(equalTo: document.topAnchor),
+                cards.leadingAnchor.constraint(equalTo: document.leadingAnchor)
+            ])
+            scroll.documentView = document
+            stack.addArrangedSubview(scroll)
+            NSLayoutConstraint.activate([
+                scroll.widthAnchor.constraint(equalToConstant: 500),
+                scroll.heightAnchor.constraint(equalToConstant: 440)
+            ])
+            integrationScroll = scroll
+            window?.contentView?.layoutSubtreeIfNeeded()
+            scroll.contentView.scroll(to: NSPoint(x: 0, y: integrationScrollOffset))
+            scroll.reflectScrolledClipView(scroll.contentView)
             return
         }
 
         switch selectedPlugin {
+        case .homebrew: buildHomebrewSettings(in: stack)
         case .fish: buildFishSettings(in: stack)
         case .starship: buildStarshipSettings(in: stack)
         case .tgpt: buildTgptSettings(in: stack)
@@ -399,6 +440,7 @@ final class PreferencesWindow: NSWindowController {
         toggle.tag = plugin.rawValue
         toggle.target = self
         toggle.action = #selector(togglePluginFromOverview(_:))
+        toggle.isHidden = plugin == .homebrew
         toggle.state = pluginEnabled(plugin) ? .on : .off
         toggle.setAccessibilityLabel("Enable \(plugin.title)")
         toggle.translatesAutoresizingMaskIntoConstraints = false
@@ -437,6 +479,7 @@ final class PreferencesWindow: NSWindowController {
 
     private func pluginEnabled(_ plugin: Plugin) -> Bool {
         switch plugin {
+        case .homebrew: return OptionalToolSupport.installedExecutable(named: "brew") != nil
         case .fish: return settings.shellChoice == "fish" ||
             (settings.shellChoice != "zsh" && settings.useFish != false)
         case .starship: return settings.useStarship != false
@@ -446,6 +489,25 @@ final class PreferencesWindow: NSWindowController {
         case .micro: return settings.useMicro == true
         }
     }
+
+    private func buildHomebrewSettings(in stack: NSStackView) {
+        let installed = OptionalToolSupport.installedExecutable(named: "brew") != nil
+        stack.addArrangedSubview(detail("Install optional shell tools and applications with Homebrew."))
+        stack.addArrangedSubview(detail(installed
+            ? "Homebrew is installed and available in Hafþi."
+            : "Homebrew is not installed. The official installer opens in a dedicated Hafþi window and asks you to confirm its changes. It may ask for your macOS password."))
+        let install = NSButton(title: "Install Homebrew…", target: self,
+                               action: #selector(installHomebrew(_:)))
+        install.isEnabled = !installed
+        stack.addArrangedSubview(install)
+        stack.addArrangedSubview(NSButton(title: "Refresh status", target: self,
+                                          action: #selector(refreshToolStatus(_:))))
+        stack.addArrangedSubview(NSButton(title: "Homebrew website…", target: self,
+                                          action: #selector(openHomebrew(_:))))
+        stack.addArrangedSubview(pluginLink(.homebrew))
+    }
+
+    @objc private func refreshToolStatus(_ sender: Any?) { refresh(settings) }
 
     private func buildFishSettings(in stack: NSStackView) {
         stack.addArrangedSubview(detail("Automatic uses Fish when enabled and installed. You can also choose Fish or Zsh explicitly in Terminal settings."))
